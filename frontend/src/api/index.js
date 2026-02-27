@@ -32,6 +32,11 @@ api.interceptors.response.use(
 
 export const login = (data) => api.post('/login', data)
 export const getUsers = () => api.get('/users')
+export const createUser = (data) => api.post('/users', data)
+export const updateUser = (id, data) => api.put(`/users/${id}`, data)
+export const deleteUser = (id) => api.delete(`/users/${id}`)
+export const updateUserPassword = (id, password) => api.put(`/users/${id}/password`, { password })
+export const getCurrentUser = () => api.get('/users/me')
 export const getDashboardStats = () => api.get('/dashboard/stats')
 export const getProjects = (params) => api.get('/projects', { params })
 export const getProject = (id) => api.get(`/projects/${id}`)

@@ -63,6 +63,35 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+const adminMiddleware = (req, res, next) => {
+  if (req.user.role !== '管理员') {
+    return res.status(403).json({ error: '需要管理员权限' });
+  }
+  next();
+};
+
+const getUserProjects = (user) => {
+  if (user.role === '管理员') {
+    return data.projects;
+  }
+  
+  const roleFieldMap = {
+    '技术': 'technical_user_id',
+    '采购': 'purchase_user_id',
+    '生产': 'production_user_id',
+    '交付': 'delivery_user_id',
+    '财务': 'finance_user_id',
+    '售后': 'after_sale_user_id'
+  };
+  
+  const field = roleFieldMap[user.role];
+  if (!field) {
+    return [];
+  }
+  
+  return data.projects.filter(p => p[field] === user.id);
+};
+
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   const user = data.users.find(u => u.username === username);
@@ -73,8 +102,91 @@ app.post('/api/login', (req, res) => {
   res.json({ token, user: { id: user.id, username: user.username, realname: user.realname, role: user.role } });
 });
 
-app.get('/api/users', authMiddleware, (req, res) => {
+app.get('/api/users', authMiddleware, adminMiddleware, (req, res) => {
   res.json(data.users.map(u => ({ id: u.id, username: u.username, realname: u.realname, role: u.role, created_at: u.created_at })));
+});
+
+app.get('/api/users/me', authMiddleware, (req, res) => {
+  const user = data.users.find(u => u.id === req.user.id);
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+  res.json({ id: user.id, username: user.username, realname: user.realname, role: user.role, created_at: user.created_at });
+});
+
+app.post('/api/users', authMiddleware, adminMiddleware, (req, res) => {
+  const { username, password, realname, role } = req.body;
+  
+  if (!username || !password || !realname || !role) {
+    return res.status(400).json({ error: '缺少必要字段' });
+  }
+  
+  if (data.users.find(u => u.username === username)) {
+    return res.status(400).json({ error: '用户名已存在' });
+  }
+  
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  const newUser = {
+    id: uuidv4(),
+    username,
+    password: hashedPassword,
+    realname,
+    role,
+    created_at: new Date().toISOString()
+  };
+  
+  data.users.push(newUser);
+  saveData();
+  
+  res.status(201).json({ id: newUser.id, username: newUser.username, realname: newUser.realname, role: newUser.role });
+});
+
+app.put('/api/users/:id', authMiddleware, adminMiddleware, (req, res) => {
+  const userIndex = data.users.findIndex(u => u.id === req.params.id);
+  if (userIndex === -1) return res.status(404).json({ error: '用户不存在' });
+  
+  const { username, realname, role } = req.body;
+  
+  if (username && username !== data.users[userIndex].username) {
+    if (data.users.find(u => u.username === username)) {
+      return res.status(400).json({ error: '用户名已存在' });
+    }
+    data.users[userIndex].username = username;
+  }
+  
+  if (realname) data.users[userIndex].realname = realname;
+  if (role) data.users[userIndex].role = role;
+  
+  saveData();
+  
+  res.json({ id: data.users[userIndex].id, username: data.users[userIndex].username, realname: data.users[userIndex].realname, role: data.users[userIndex].role });
+});
+
+app.delete('/api/users/:id', authMiddleware, adminMiddleware, (req, res) => {
+  const userIndex = data.users.findIndex(u => u.id === req.params.id);
+  if (userIndex === -1) return res.status(404).json({ error: '用户不存在' });
+  
+  if (data.users[userIndex].username === 'admin') {
+    return res.status(400).json({ error: '不能删除管理员账户' });
+  }
+  
+  data.users.splice(userIndex, 1);
+  saveData();
+  
+  res.json({ success: true });
+});
+
+app.put('/api/users/:id/password', authMiddleware, adminMiddleware, (req, res) => {
+  const userIndex = data.users.findIndex(u => u.id === req.params.id);
+  if (userIndex === -1) return res.status(404).json({ error: '用户不存在' });
+  
+  const { password } = req.body;
+  if (!password) {
+    return res.status(400).json({ error: '请提供新密码' });
+  }
+  
+  data.users[userIndex].password = bcrypt.hashSync(password, 10);
+  saveData();
+  
+  res.json({ success: true });
 });
 
 app.get('/api/dashboard/stats', authMiddleware, (req, res) => {
@@ -82,16 +194,19 @@ app.get('/api/dashboard/stats', authMiddleware, (req, res) => {
   const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const currentMonth = now.toISOString().slice(0, 7);
 
-  const totalProjects = data.projects.length;
-  const inProgressProjects = data.projects.filter(p => p.project_status === '进行中').length;
-  const completedProjects = data.projects.filter(p => p.acceptance_status === '已验收').length;
-  const expiringProjects = data.projects.filter(p => p.planned_delivery_date && new Date(p.planned_delivery_date) <= sevenDaysLater && p.acceptance_status !== '已验收').length;
-  const newThisMonth = data.projects.filter(p => p.created_at && p.created_at.startsWith(currentMonth)).length;
-  const deliveredThisMonth = data.projects.filter(p => p.delivery_date && p.delivery_date.startsWith(currentMonth)).length;
+  const userProjects = getUserProjects(req.user);
+  
+  const totalProjects = userProjects.length;
+  const inProgressProjects = userProjects.filter(p => p.project_status === '进行中').length;
+  const completedProjects = userProjects.filter(p => p.acceptance_status === '已验收').length;
+  const expiringProjects = userProjects.filter(p => p.planned_delivery_date && new Date(p.planned_delivery_date) <= sevenDaysLater && p.acceptance_status !== '已验收').length;
+  const newThisMonth = userProjects.filter(p => p.created_at && p.created_at.startsWith(currentMonth)).length;
+  const deliveredThisMonth = userProjects.filter(p => p.delivery_date && p.delivery_date.startsWith(currentMonth)).length;
+  const totalAmount = userProjects.reduce((sum, p) => sum + (parseFloat(p.contract_amount) || 0), 0);
 
   const stageDistribution = [];
   const stageMap = {};
-  data.projects.forEach(p => {
+  userProjects.forEach(p => {
     const stage = p.current_stage || '项目接单';
     stageMap[stage] = (stageMap[stage] || 0) + 1;
   });
@@ -106,13 +221,14 @@ app.get('/api/dashboard/stats', authMiddleware, (req, res) => {
     expiringProjects,
     newThisMonth,
     deliveredThisMonth,
+    totalAmount,
     stageDistribution
   });
 });
 
 app.get('/api/projects', authMiddleware, (req, res) => {
   const { status, stage, search } = req.query;
-  let projects = [...data.projects];
+  let projects = getUserProjects(req.user);
   
   if (status) projects = projects.filter(p => p.project_status === status);
   if (stage) projects = projects.filter(p => p.current_stage === stage);
@@ -132,6 +248,10 @@ app.get('/api/projects', authMiddleware, (req, res) => {
 app.get('/api/projects/:id', authMiddleware, (req, res) => {
   const project = data.projects.find(p => p.id === req.params.id);
   if (!project) return res.status(404).json({ error: '项目不存在' });
+  
+  const userProjects = getUserProjects(req.user);
+  const hasAccess = userProjects.some(p => p.id === req.params.id);
+  if (!hasAccess) return res.status(403).json({ error: '无权限访问此项目' });
   
   const logs = data.projectLogs
     .filter(l => l.project_id === req.params.id)

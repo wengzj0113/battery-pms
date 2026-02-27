@@ -19,6 +19,10 @@
             <el-icon><Plus /></el-icon>
             <span>新建项目</span>
           </el-menu-item>
+          <el-menu-item v-if="user.role === '管理员'" index="/users">
+            <el-icon><User /></el-icon>
+            <span>用户管理</span>
+          </el-menu-item>
         </el-menu>
       </el-aside>
       <el-container>
@@ -79,6 +83,15 @@
                   </div>
                 </div>
               </el-col>
+              <el-col v-if="user.role === '管理员'" :span="6">
+                <div class="stat-card stat-primary">
+                  <div class="stat-icon"><el-icon :size="32"><Money /></el-icon></div>
+                  <div class="stat-content">
+                    <div class="stat-value">¥{{ (stats.totalAmount || 0).toLocaleString() }}</div>
+                    <div class="stat-label">项目总额</div>
+                  </div>
+                </div>
+              </el-col>
             </el-row>
           </div>
 
@@ -126,7 +139,7 @@
               <el-table-column prop="project_code" label="项目编号" width="140" />
               <el-table-column prop="project_name" label="项目名称" min-width="180" />
               <el-table-column prop="customer_name" label="客户名称" width="140" />
-              <el-table-column prop="contract_amount" label="合同金额" width="120">
+              <el-table-column v-if="user.role === '管理员'" prop="contract_amount" label="合同金额" width="120">
                 <template #default="{ row }">
                   ¥{{ (row.contract_amount || 0).toLocaleString() }}
                 </template>
@@ -163,6 +176,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import { getDashboardStats, getProjects } from '../api'
+import { Money } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()

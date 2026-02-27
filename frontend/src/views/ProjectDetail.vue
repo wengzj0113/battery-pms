@@ -68,13 +68,13 @@
             </el-row>
 
             <el-row :gutter="20" style="margin-top: 20px">
-              <el-col :span="6">
+              <el-col v-if="isAdmin" :span="6">
                 <div class="stat-card">
                   <div class="stat-label">合同金额</div>
                   <div class="stat-value">¥{{ (project.contract_amount || 0).toLocaleString() }}</div>
                 </div>
               </el-col>
-              <el-col :span="6">
+              <el-col v-if="isAdmin" :span="6">
                 <div class="stat-card">
                   <div class="stat-label">已收金额</div>
                   <div class="stat-value success">¥{{ (project.received_amount || 0).toLocaleString() }}</div>
@@ -167,9 +167,9 @@
                     <div class="card-header"><el-icon><Money /></el-icon>财务模块</div>
                   </template>
                   <div class="module-content">
-                    <div class="module-item"><span class="label">应收金额：</span>¥{{ (project.receivable_amount || 0).toLocaleString() }}</div>
-                    <div class="module-item"><span class="label">已收金额：</span>¥{{ (project.received_amount || 0).toLocaleString() }}</div>
-                    <div class="module-item"><span class="label">合同金额：</span>¥{{ (project.contract_amount || 0).toLocaleString() }}</div>
+                    <div v-if="isAdmin" class="module-item"><span class="label">应收金额：</span>¥{{ (project.receivable_amount || 0).toLocaleString() }}</div>
+                    <div v-if="isAdmin" class="module-item"><span class="label">已收金额：</span>¥{{ (project.received_amount || 0).toLocaleString() }}</div>
+                    <div v-if="isAdmin" class="module-item"><span class="label">合同金额：</span>¥{{ (project.contract_amount || 0).toLocaleString() }}</div>
                   </div>
                 </el-card>
               </el-col>
@@ -224,6 +224,7 @@ const loading = ref(false)
 const stages = ['项目接单', '方案设计', '采购执行', '生产装配', '出厂测试', '发货交付', '现场调试', '验收完成', '售后运维']
 
 const activeMenu = computed(() => '/projects')
+const isAdmin = computed(() => user.role === '管理员')
 
 const getStageType = (stage) => {
   const types = {

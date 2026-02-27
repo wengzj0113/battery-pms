@@ -67,7 +67,7 @@
               <el-table-column prop="project_code" label="项目编号" width="140" />
               <el-table-column prop="project_name" label="项目名称" min-width="180" show-overflow-tooltip />
               <el-table-column prop="customer_name" label="客户名称" width="140" show-overflow-tooltip />
-              <el-table-column prop="contract_amount" label="合同金额" width="120" align="right">
+              <el-table-column v-if="isAdmin" prop="contract_amount" label="合同金额" width="120" align="right">
                 <template #default="{ row }">
                   ¥{{ (row.contract_amount || 0).toLocaleString() }}
                 </template>
@@ -131,6 +131,7 @@ const filterStage = ref('')
 const stages = ['项目接单', '方案设计', '采购执行', '生产装配', '出厂测试', '发货交付', '现场调试', '验收完成', '售后运维']
 
 const activeMenu = computed(() => route.path)
+const isAdmin = computed(() => user.role === '管理员')
 
 const getStageType = (stage) => {
   const types = {
