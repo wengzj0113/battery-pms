@@ -1,0 +1,3 @@
+- [x] Vercel配置正确无误 - vercel.json已修复
+- [ ] Railway后端正常运行 - 用户报告API超时
+- [ ] 手机浏览器可以登录
