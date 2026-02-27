@@ -163,6 +163,35 @@
                 </el-col>
               </el-row>
 
+              <el-divider content-position="left">软件版本信息</el-divider>
+              <el-row :gutter="20">
+                <el-col :span="8">
+                  <el-form-item label="中位机软件版本">
+                    <el-input v-model="form.middle_software_version" placeholder="如: V1.0.0" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="下位机软件版本">
+                    <el-input v-model="form.lower_software_version" placeholder="如: V1.0.0" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="上位机软件版本">
+                    <el-input v-model="form.upper_software_version" placeholder="如: V1.0.0" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="图纸版本-线路板">
+                    <el-input v-model="form.pcb_drawing_version" placeholder="如: PCB-V1" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="图纸版本-结构设计">
+                    <el-input v-model="form.structure_drawing_version" placeholder="如: STR-V1" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+
               <el-divider content-position="left">交付信息</el-divider>
               <el-row :gutter="20">
                 <el-col :span="8">
@@ -288,7 +317,12 @@ const form = reactive({
   warranty_expiry_date: '',
   after_sale_records: '',
   current_stage: '项目接单',
-  project_status: '进行中'
+  project_status: '进行中',
+  middle_software_version: '',
+  lower_software_version: '',
+  upper_software_version: '',
+  pcb_drawing_version: '',
+  structure_drawing_version: ''
 })
 const rules = { project_name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }] }
 const loading = ref(false)

@@ -8,7 +8,7 @@ try {
   execSync('git add -A', { cwd: projectPath, stdio: 'inherit' });
   
   console.log('提交代码...');
-  execSync('git commit -m "feat: add user management and role permissions"', { cwd: projectPath, stdio: 'inherit' });
+  execSync('git commit -m "feat: add software version tracking fields"', { cwd: projectPath, stdio: 'inherit' });
   
   console.log('推送到GitHub...');
   execSync('git push origin master', { cwd: projectPath, stdio: 'inherit' });

@@ -311,6 +311,11 @@ app.post('/api/projects', authMiddleware, (req, res) => {
     after_sale_user_id: req.body.after_sale_user_id || '',
     project_status: req.body.project_status || '进行中',
     current_stage: req.body.current_stage || '项目接单',
+    middle_software_version: req.body.middle_software_version || '',
+    lower_software_version: req.body.lower_software_version || '',
+    upper_software_version: req.body.upper_software_version || '',
+    pcb_drawing_version: req.body.pcb_drawing_version || '',
+    structure_drawing_version: req.body.structure_drawing_version || '',
     creator_id: req.user.id,
     created_at: now,
     updated_at: now
@@ -328,7 +333,7 @@ app.post('/api/projects', authMiddleware, (req, res) => {
   });
   
   saveData();
-  res.json({ id, project_code: projectCode });
+  res.status(201).json({ id, project_code: projectCode });
 });
 
 app.put('/api/projects/:id', authMiddleware, (req, res) => {
@@ -345,7 +350,9 @@ app.put('/api/projects/:id', authMiddleware, (req, res) => {
     'quality_user_id', 'delivery_date', 'tracking_number', 'debug_status', 
     'acceptance_status', 'delivery_user_id', 'receivable_amount', 'received_amount',
     'invoice_records', 'finance_user_id', 'after_sale_status', 'warranty_expiry_date',
-    'after_sale_records', 'after_sale_user_id', 'project_status', 'current_stage'
+    'after_sale_records', 'after_sale_user_id', 'project_status', 'current_stage',
+    'middle_software_version', 'lower_software_version', 'upper_software_version',
+    'pcb_drawing_version', 'structure_drawing_version'
   ];
 
   allowedFields.forEach(field => {

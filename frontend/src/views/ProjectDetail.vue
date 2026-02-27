@@ -148,6 +148,32 @@
             </el-row>
 
             <el-row :gutter="20" style="margin-top: 20px">
+              <el-col :span="12">
+                <el-card shadow="hover" class="module-card">
+                  <template #header>
+                    <div class="card-header"><el-icon><Monitor /></el-icon>软件版本</div>
+                  </template>
+                  <div class="module-content">
+                    <div class="module-item"><span class="label">中位机软件版本：</span>{{ project.middle_software_version || '-' }}</div>
+                    <div class="module-item"><span class="label">下位机软件版本：</span>{{ project.lower_software_version || '-' }}</div>
+                    <div class="module-item"><span class="label">上位机软件版本：</span>{{ project.upper_software_version || '-' }}</div>
+                  </div>
+                </el-card>
+              </el-col>
+              <el-col :span="12">
+                <el-card shadow="hover" class="module-card">
+                  <template #header>
+                    <div class="card-header"><el-icon><Document /></el-icon>图纸版本</div>
+                  </template>
+                  <div class="module-content">
+                    <div class="module-item"><span class="label">线路板图纸版本：</span>{{ project.pcb_drawing_version || '-' }}</div>
+                    <div class="module-item"><span class="label">结构设计图纸版本：</span>{{ project.structure_drawing_version || '-' }}</div>
+                  </div>
+                </el-card>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="20" style="margin-top: 20px">
               <el-col :span="8">
                 <el-card shadow="hover" class="module-card">
                   <template #header>
