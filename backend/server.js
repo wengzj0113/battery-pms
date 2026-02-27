@@ -9,6 +9,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const HOST = process.env.HOST || '0.0.0.0';
 const JWT_SECRET = 'battery-pms-secret-key-2026';
 const DATA_FILE = path.join(__dirname, 'data.json');
 
@@ -387,6 +388,6 @@ app.delete('/api/projects/:id', authMiddleware, (req, res) => {
   res.json({ success: true });
 });
 
-app.listen(PORT, () => {
-  console.log(`服务器运行在 http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`服务器运行在 http://${HOST}:${PORT}`);
 });
