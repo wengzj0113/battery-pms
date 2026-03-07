@@ -1,80 +1,34 @@
 <template>
-  <div class="layout">
-    <el-container>
-      <el-aside width="220px">
-        <div class="logo">
-          <el-icon :size="28"><Monitor /></el-icon>
-          <span>项目管理系统</span>
+  <AppLayout title="用户管理">
+    <el-card shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span>用户列表</span>
+          <el-button type="primary" @click="openAddDialog">添加用户</el-button>
         </div>
-        <el-menu :default-active="activeMenu" router background-color="#1a1a2e" text-color="#fff" active-text-color="#409eff">
-          <el-menu-item index="/dashboard">
-            <el-icon><DataAnalysis /></el-icon>
-            <span>项目看板</span>
-          </el-menu-item>
-          <el-menu-item index="/projects">
-            <el-icon><FolderOpened /></el-icon>
-            <span>项目管理</span>
-          </el-menu-item>
-          <el-menu-item index="/project/new">
-            <el-icon><Plus /></el-icon>
-            <span>新建项目</span>
-          </el-menu-item>
-          <el-menu-item index="/users" v-if="isAdmin">
-            <el-icon><UserFilled /></el-icon>
-            <span>用户管理</span>
-          </el-menu-item>
-        </el-menu>
-      </el-aside>
-      <el-container>
-        <el-header>
-          <div class="header-left">
-            <h3>用户管理</h3>
-          </div>
-          <div class="header-right">
-            <el-dropdown @command="handleCommand">
-              <span class="user-info">
-                <el-icon><User /></el-icon>
-                <span>{{ user.realname }} ({{ user.role }})</span>
-              </span>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="logout">退出登录</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-        </el-header>
-        <el-main>
-          <el-card shadow="hover">
-            <template #header>
-              <div class="card-header">
-                <span>用户列表</span>
-                <el-button type="primary" @click="openAddDialog">添加用户</el-button>
-              </div>
+      </template>
+      <div class="table-scroll">
+        <el-table :data="users" stripe v-loading="loading" style="width: 100%; min-width: 820px">
+          <el-table-column prop="username" label="用户名" width="150" />
+          <el-table-column prop="realname" label="真实姓名" width="150" />
+          <el-table-column prop="role" label="角色" width="120">
+            <template #default="{ row }">
+              <el-tag>{{ row.role }}</el-tag>
             </template>
-            <el-table :data="users" stripe v-loading="loading">
-              <el-table-column prop="username" label="用户名" width="150" />
-              <el-table-column prop="realname" label="真实姓名" width="150" />
-              <el-table-column prop="role" label="角色" width="120">
-                <template #default="{ row }">
-                  <el-tag>{{ row.role }}</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="created_at" label="创建时间" width="180" />
-              <el-table-column label="操作" width="240" fixed="right">
-                <template #default="{ row }">
-                  <el-button link type="primary" @click="openEditDialog(row)">编辑</el-button>
-                  <el-button link type="warning" @click="openPasswordDialog(row)">修改密码</el-button>
-                  <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-          </el-card>
-        </el-main>
-      </el-container>
-    </el-container>
+          </el-table-column>
+          <el-table-column prop="created_at" label="创建时间" width="180" />
+          <el-table-column label="操作" width="240" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openEditDialog(row)">编辑</el-button>
+              <el-button link type="warning" @click="openPasswordDialog(row)">修改密码</el-button>
+              <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </el-card>
 
-    <el-dialog v-model="userDialogVisible" :title="isEdit ? '编辑用户' : '添加用户'" width="500px">
+    <el-dialog v-model="userDialogVisible" :title="isEdit ? '编辑用户' : '添加用户'" width="90%" class="dialog dialog-wide">
       <el-form ref="userFormRef" :model="userForm" :rules="userRules" label-width="80px">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="userForm.username" :disabled="isEdit" />
@@ -97,7 +51,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="passwordDialogVisible" title="修改密码" width="400px">
+    <el-dialog v-model="passwordDialogVisible" title="修改密码" width="90%" class="dialog dialog-narrow">
       <el-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-width="80px">
         <el-form-item label="新密码" prop="password">
           <el-input v-model="passwordForm.password" type="password" show-password />
@@ -111,17 +65,17 @@
         <el-button type="primary" @click="submitPassword" :loading="submitting">确定</el-button>
       </template>
     </el-dialog>
-  </div>
+  </AppLayout>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import AppLayout from '../components/AppLayout.vue'
 import { getUsers, createUser, updateUser, deleteUser, updateUserPassword } from '../api'
 
 const router = useRouter()
-const route = useRoute()
 
 const user = reactive(JSON.parse(localStorage.getItem('user') || '{}'))
 const isAdmin = computed(() => user.role === '管理员')
@@ -129,8 +83,6 @@ const isAdmin = computed(() => user.role === '管理员')
 const users = ref([])
 const loading = ref(false)
 const submitting = ref(false)
-
-const activeMenu = computed(() => route.path)
 
 const roles = ['管理员', '技术', '采购', '生产', '交付', '财务', '售后']
 
@@ -279,14 +231,6 @@ const handleDelete = (row) => {
   }).catch(() => {})
 }
 
-const handleCommand = (cmd) => {
-  if (cmd === 'logout') {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    router.push('/login')
-  }
-}
-
 onMounted(() => {
   if (!isAdmin.value) {
     ElMessage.warning('您没有权限访问此页面')
@@ -298,14 +242,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.layout { min-height: 100vh; }
-.el-container { min-height: 100vh; }
-.el-aside { background: #1a1a2e; }
-.logo { height: 60px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; font-weight: bold; gap: 8px; border-bottom: 1px solid #2a2a4e; }
-.el-menu { border-right: none; }
-.el-header { background: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #e4e7ed; }
-.header-left h3 { margin: 0; color: #303133; }
-.user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; color: #606266; }
-.el-main { background: #f5f7fa; padding: 20px; }
 .card-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+.table-scroll { overflow-x: auto; }
+
+.dialog-wide:deep(.el-dialog) { max-width: 500px; }
+.dialog-narrow:deep(.el-dialog) { max-width: 400px; }
 </style>

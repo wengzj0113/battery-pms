@@ -1,53 +1,30 @@
 <template>
-  <div class="layout">
-    <el-container>
-      <el-aside width="220px">
-        <div class="logo">
-          <el-icon :size="28"><Monitor /></el-icon>
-          <span>项目管理系统</span>
-        </div>
-        <el-menu :default-active="activeMenu" router background-color="#1a1a2e" text-color="#fff" active-text-color="#409eff">
-          <el-menu-item index="/dashboard">
-            <el-icon><DataAnalysis /></el-icon>
-            <span>项目看板</span>
-          </el-menu-item>
-          <el-menu-item index="/projects">
-            <el-icon><FolderOpened /></el-icon>
-            <span>项目管理</span>
-          </el-menu-item>
-          <el-menu-item index="/project/new">
-            <el-icon><Plus /></el-icon>
-            <span>新建项目</span>
-          </el-menu-item>
-        </el-menu>
-      </el-aside>
-      <el-container>
-        <el-header>
-          <div class="header-left">
-            <el-button text @click="$router.push('/projects')">
-              <el-icon><ArrowLeft /></el-icon>返回列表
-            </el-button>
-            <h3>项目详情看板</h3>
-          </div>
-          <div class="header-right">
-            <el-button type="primary" @click="$router.push(`/projects/${id}/edit`)">
-              <el-icon><Edit /></el-icon>编辑项目
-            </el-button>
-            <el-dropdown @command="handleCommand">
-              <span class="user-info">
-                <el-icon><User /></el-icon>
-                <span>{{ user.realname }} ({{ user.role }})</span>
-              </span>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="logout">退出登录</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-        </el-header>
-        <el-main v-loading="loading">
-          <div v-if="project" class="project-detail">
+  <AppLayout title="项目详情看板">
+    <template #header-left>
+      <el-button text @click="$router.push('/projects')">
+        <el-icon><ArrowLeft /></el-icon>返回列表
+      </el-button>
+      <h3>项目详情看板</h3>
+    </template>
+    <template #header-right="{ user: headerUser, logout }">
+      <el-button type="primary" @click="$router.push(`/projects/${id}/edit`)">
+        <el-icon><Edit /></el-icon>编辑项目
+      </el-button>
+      <el-dropdown @command="cmd => cmd === 'logout' && logout()">
+        <span class="user-info">
+          <el-icon><User /></el-icon>
+          <span>{{ headerUser.realname }} ({{ headerUser.role }})</span>
+        </span>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+    </template>
+
+    <div v-loading="loading">
+      <div v-if="project" class="project-detail">
             <el-row :gutter="20">
               <el-col :span="24">
                 <el-card shadow="hover" class="header-card">
@@ -226,17 +203,16 @@
                 </el-timeline-item>
               </el-timeline>
             </el-card>
-          </div>
-        </el-main>
-      </el-container>
-    </el-container>
-  </div>
+      </div>
+    </div>
+  </AppLayout>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import AppLayout from '../components/AppLayout.vue'
 import { getProject } from '../api'
 
 const router = useRouter()
@@ -249,7 +225,6 @@ const loading = ref(false)
 
 const stages = ['项目接单', '方案设计', '采购执行', '生产装配', '出厂测试', '发货交付', '现场调试', '验收完成', '售后运维']
 
-const activeMenu = computed(() => '/projects')
 const isAdmin = computed(() => user.role === '管理员')
 
 const getStageType = (stage) => {
@@ -278,31 +253,13 @@ const loadProject = async () => {
   }
 }
 
-const handleCommand = (cmd) => {
-  if (cmd === 'logout') {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    router.push('/login')
-  }
-}
-
 onMounted(() => {
   loadProject()
 })
 </script>
 
 <style scoped>
-.layout { min-height: 100vh; }
-.el-container { min-height: 100vh; }
-.el-aside { background: #1a1a2e; }
-.logo { height: 60px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; font-weight: bold; gap: 8px; border-bottom: 1px solid #2a2a4e; }
-.el-menu { border-right: none; }
-.el-header { background: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #e4e7ed; }
-.header-left { display: flex; align-items: center; gap: 12px; }
-.header-left h3 { margin: 0; color: #303133; }
-.header-right { display: flex; align-items: center; gap: 16px; }
 .user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; color: #606266; }
-.el-main { background: #f5f7fa; padding: 20px; }
 .project-header { display: flex; justify-content: space-between; align-items: flex-start; }
 .project-title { display: flex; align-items: center; }
 .project-title h2 { margin: 0; }

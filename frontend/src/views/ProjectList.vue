@@ -1,69 +1,29 @@
 <template>
-  <div class="layout">
-    <el-container>
-      <el-aside width="220px">
-        <div class="logo">
-          <el-icon :size="28"><Monitor /></el-icon>
-          <span>项目管理系统</span>
+  <AppLayout title="项目管理">
+    <el-card shadow="hover">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <el-input v-model="search" placeholder="搜索项目名称/编号/客户" class="toolbar-input" clearable @change="loadProjects">
+            <template #prefix><el-icon><Search /></el-icon></template>
+          </el-input>
+          <el-select v-model="filterStatus" placeholder="项目状态" clearable class="toolbar-select" @change="loadProjects">
+            <el-option label="进行中" value="进行中" />
+            <el-option label="已暂停" value="已暂停" />
+            <el-option label="已关闭" value="已关闭" />
+          </el-select>
+          <el-select v-model="filterStage" placeholder="当前阶段" clearable class="toolbar-select" @change="loadProjects">
+            <el-option v-for="s in stages" :key="s" :label="s" :value="s" />
+          </el-select>
         </div>
-        <el-menu :default-active="activeMenu" router background-color="#1a1a2e" text-color="#fff" active-text-color="#409eff">
-          <el-menu-item index="/dashboard">
-            <el-icon><DataAnalysis /></el-icon>
-            <span>项目看板</span>
-          </el-menu-item>
-          <el-menu-item index="/projects">
-            <el-icon><FolderOpened /></el-icon>
-            <span>项目管理</span>
-          </el-menu-item>
-          <el-menu-item index="/project/new">
-            <el-icon><Plus /></el-icon>
-            <span>新建项目</span>
-          </el-menu-item>
-        </el-menu>
-      </el-aside>
-      <el-container>
-        <el-header>
-          <div class="header-left">
-            <h3>项目管理</h3>
-          </div>
-          <div class="header-right">
-            <el-dropdown @command="handleCommand">
-              <span class="user-info">
-                <el-icon><User /></el-icon>
-                <span>{{ user.realname }} ({{ user.role }})</span>
-              </span>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="logout">退出登录</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-        </el-header>
-        <el-main>
-          <el-card shadow="hover">
-            <div class="toolbar">
-              <div class="toolbar-left">
-                <el-input v-model="search" placeholder="搜索项目名称/编号/客户" style="width: 280px" clearable @change="loadProjects">
-                  <template #prefix><el-icon><Search /></el-icon></template>
-                </el-input>
-                <el-select v-model="filterStatus" placeholder="项目状态" clearable style="width: 140px; margin-left: 12px" @change="loadProjects">
-                  <el-option label="进行中" value="进行中" />
-                  <el-option label="已暂停" value="已暂停" />
-                  <el-option label="已关闭" value="已关闭" />
-                </el-select>
-                <el-select v-model="filterStage" placeholder="当前阶段" clearable style="width: 140px; margin-left: 12px" @change="loadProjects">
-                  <el-option v-for="s in stages" :key="s" :label="s" :value="s" />
-                </el-select>
-              </div>
-              <div class="toolbar-right">
-                <el-button type="primary" @click="$router.push('/project/new')">
-                  <el-icon><Plus /></el-icon>新建项目
-                </el-button>
-              </div>
-            </div>
+        <div class="toolbar-right">
+          <el-button type="primary" @click="$router.push('/project/new')">
+            <el-icon><Plus /></el-icon>新建项目
+          </el-button>
+        </div>
+      </div>
 
-            <el-table :data="projects" stripe v-loading="loading" @row-click="handleRowClick">
+      <div class="table-scroll">
+        <el-table :data="projects" stripe v-loading="loading" @row-click="handleRowClick" style="width: 100%; min-width: 1180px">
               <el-table-column prop="project_code" label="项目编号" width="140" />
               <el-table-column prop="project_name" label="项目名称" min-width="180" show-overflow-tooltip />
               <el-table-column prop="customer_name" label="客户名称" width="140" show-overflow-tooltip />
@@ -104,18 +64,17 @@
                   <el-button link type="danger" size="small" @click.stop="handleDelete(row)">删除</el-button>
                 </template>
               </el-table-column>
-            </el-table>
-          </el-card>
-        </el-main>
-      </el-container>
-    </el-container>
-  </div>
+        </el-table>
+      </div>
+    </el-card>
+  </AppLayout>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import AppLayout from '../components/AppLayout.vue'
 import { getProjects, deleteProject } from '../api'
 
 const router = useRouter()
@@ -130,7 +89,6 @@ const filterStage = ref('')
 
 const stages = ['项目接单', '方案设计', '采购执行', '生产装配', '出厂测试', '发货交付', '现场调试', '验收完成', '售后运维']
 
-const activeMenu = computed(() => route.path)
 const isAdmin = computed(() => user.role === '管理员')
 
 const getStageType = (stage) => {
@@ -178,29 +136,23 @@ const handleDelete = async (row) => {
   }
 }
 
-const handleCommand = (cmd) => {
-  if (cmd === 'logout') {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    router.push('/login')
-  }
-}
-
 onMounted(() => {
   loadProjects()
 })
 </script>
 
 <style scoped>
-.layout { min-height: 100vh; }
-.el-container { min-height: 100vh; }
-.el-aside { background: #1a1a2e; }
-.logo { height: 60px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; font-weight: bold; gap: 8px; border-bottom: 1px solid #2a2a4e; }
-.el-menu { border-right: none; }
-.el-header { background: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #e4e7ed; }
-.header-left h3 { margin: 0; color: #303133; }
-.user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; color: #606266; }
-.el-main { background: #f5f7fa; padding: 20px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar-left { display: flex; align-items: center; }
+.toolbar-input { width: 280px; }
+.toolbar-select { width: 140px; margin-left: 12px; }
+.table-scroll { overflow-x: auto; }
+
+@media (max-width: 768px) {
+  .toolbar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .toolbar-left { flex-wrap: wrap; gap: 12px; }
+  .toolbar-input { width: 100%; }
+  .toolbar-select { width: calc(50% - 6px); margin-left: 0; }
+  .toolbar-right { display: flex; justify-content: flex-end; }
+}
 </style>

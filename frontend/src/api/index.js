@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // 自动判断环境：生产环境使用云端后端，开发环境使用本地代理
 const baseURL = import.meta.env.PROD 
-  ? 'https://battery-pms-production.up.railway.app/api' 
+  ? (import.meta.env.VITE_API_BASE_URL || '/api')
   : '/api'
 
 const api = axios.create({
