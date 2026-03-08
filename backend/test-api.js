@@ -193,11 +193,25 @@ async function run() {
   });
 
   await test('12.1 创建计划测试项目（管理员）', async () => {
-    const res = await request('POST', '/api/projects', { project_name: '计划测试项目', technical_user_id: techUserId }, adminToken);
+    const res = await request('POST', '/api/projects', { project_name: '计划测试项目', technical_user_id: techUserId, device_count: 7 }, adminToken);
     if (res.status !== 201) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
     testProjectId = res.data.id;
     if (!testProjectId) throw new Error('未获取到项目ID');
     console.log(`   测试项目ID: ${testProjectId}`);
+  });
+
+  await test('12.1.1 设备数量字段持久化（创建后读取）', async () => {
+    const res = await request('GET', `/api/projects/${testProjectId}`, null, adminToken);
+    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
+    if (res.data.device_count !== 7) throw new Error(`device_count 应为 7，实际为 ${res.data.device_count}`);
+  });
+
+  await test('12.1.2 设备数量字段持久化（更新后读取）', async () => {
+    const updateRes = await request('PUT', `/api/projects/${testProjectId}`, { device_count: 8 }, adminToken);
+    if (updateRes.status !== 200) throw new Error(`HTTP ${updateRes.status}: ${updateRes.data.error}`);
+    const res = await request('GET', `/api/projects/${testProjectId}`, null, adminToken);
+    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
+    if (res.data.device_count !== 8) throw new Error(`device_count 应为 8，实际为 ${res.data.device_count}`);
   });
 
   await test('12.2 新增计划项（日期无效应失败）', async () => {

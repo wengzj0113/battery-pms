@@ -35,6 +35,7 @@ if (!Array.isArray(data.loginLogs)) data.loginLogs = [];
 data.projects.forEach(p => {
   if (!Array.isArray(p.checkpoints)) p.checkpoints = [];
   if (!Array.isArray(p.plans)) p.plans = [];
+  if (p.device_count === undefined) p.device_count = 0;
 });
 
 const saveData = () => {
@@ -489,6 +490,7 @@ app.post('/api/projects', authMiddleware, (req, res) => {
     signed_date: req.body.signed_date || '',
     planned_delivery_date: req.body.planned_delivery_date || '',
     actual_delivery_date: req.body.actual_delivery_date || '',
+    device_count: req.body.device_count || 0,
     device_model: req.body.device_model || '',
     voltage_range: req.body.voltage_range || '',
     channel_count: req.body.channel_count || 0,
@@ -555,7 +557,7 @@ app.put('/api/projects/:id', authMiddleware, (req, res) => {
   
   const allowedFields = [
     'project_name', 'customer_name', 'contract_amount', 'signed_date', 
-    'planned_delivery_date', 'actual_delivery_date', 'device_model', 
+    'planned_delivery_date', 'actual_delivery_date', 'device_count', 'device_model', 
     'voltage_range', 'channel_count', 'technical_solution',
     'purchase_list', 'purchase_progress', 'purchase_user_id',
     'production_order', 'production_progress', 'assembly_complete_date', 

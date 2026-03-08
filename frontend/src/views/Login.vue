@@ -21,13 +21,6 @@
       <div class="login-actions">
         <el-button text @click="router.push('/register')">注册新用户</el-button>
       </div>
-      <div class="login-tip">
-        <p>默认账号：</p>
-        <p>admin / admin123 (管理员)</p>
-        <p>tech / tech123 (技术) | purchase / purchase123 (采购)</p>
-        <p>production / production123 (生产) | delivery / delivery123 (交付)</p>
-        <p>finance / finance123 (财务) | aftersale / aftersale123 (售后)</p>
-      </div>
     </div>
   </div>
 </template>
@@ -113,19 +106,6 @@ onMounted(() => {
   margin-bottom: 8px;
 }
 
-.login-tip {
-  margin-top: 24px;
-  padding: 16px;
-  background: #f5f7fa;
-  border-radius: 8px;
-  font-size: 12px;
-  color: #666;
-}
-
-.login-tip p {
-  margin: 4px 0;
-}
-
 .login-actions {
   display: flex;
   justify-content: center;
@@ -145,11 +125,6 @@ onMounted(() => {
 
   .login-header h1 {
     font-size: 20px;
-  }
-
-  .login-tip {
-    font-size: 11px;
-    padding: 12px;
   }
 }
 </style>

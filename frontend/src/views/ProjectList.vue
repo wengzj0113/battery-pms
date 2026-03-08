@@ -87,7 +87,7 @@ const search = ref('')
 const filterStatus = ref('')
 const filterStage = ref('')
 
-const stages = ['项目接单', '方案设计', '采购执行', '生产装配', '出厂测试', '发货交付', '现场调试', '验收完成', '售后运维']
+const stages = ['项目接单', '方案设计', '采购执行', '生产装配', '出厂测试', '发货交付', '现场调试', '验收完成', '售后运维', '售后维修']
 
 const isAdmin = computed(() => user.role === '管理员')
 
@@ -101,7 +101,8 @@ const getStageType = (stage) => {
     '发货交付': 'success',
     '现场调试': 'success',
     '验收完成': 'success',
-    '售后运维': 'info'
+    '售后运维': 'info',
+    '售后维修': 'danger'
   }
   return types[stage] || 'info'
 }

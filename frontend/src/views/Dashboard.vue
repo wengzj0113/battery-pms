@@ -188,7 +188,8 @@ const getStageType = (stage) => {
     '发货交付': 'success',
     '现场调试': 'success',
     '验收完成': 'success',
-    '售后运维': 'info'
+    '售后运维': 'info',
+    '售后维修': 'danger'
   }
   return types[stage] || 'info'
 }
