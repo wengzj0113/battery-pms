@@ -61,7 +61,7 @@
                 <template #default="{ row }">
                   <el-button link type="primary" size="small" @click.stop="$router.push(`/projects/${row.id}`)">查看</el-button>
                   <el-button link type="warning" size="small" @click.stop="$router.push(`/projects/${row.id}/edit`)">编辑</el-button>
-                  <el-button link type="danger" size="small" @click.stop="handleDelete(row)">删除</el-button>
+                  <el-button v-if="isAdmin" link type="danger" size="small" @click.stop="handleDelete(row)">删除</el-button>
                 </template>
               </el-table-column>
         </el-table>
@@ -126,13 +126,18 @@ const handleRowClick = (row) => {
 }
 
 const handleDelete = async (row) => {
+  if (!isAdmin.value) {
+    ElMessage.error('需要管理员权限')
+    return
+  }
   try {
     await ElMessageBox.confirm(`确定删除项目 "${row.project_name}" 吗？此操作不可恢复。`, '警告', { type: 'warning' })
     await deleteProject(row.id)
     ElMessage.success('删除成功')
     loadProjects()
   } catch (err) {
-    if (err !== 'cancel') ElMessage.error('删除失败')
+    if (err === 'cancel' || err === 'close') return
+    ElMessage.error(err.response?.data?.error || '删除失败')
   }
 }
 

@@ -71,6 +71,8 @@ const adminMiddleware = (req, res, next) => {
   next();
 };
 
+const selfRegisterRoles = ['技术', '采购', '生产', '交付', '财务', '售后'];
+
 const getUserProjects = (user) => {
   if (user.role === '管理员') {
     return data.projects;
@@ -101,6 +103,45 @@ app.post('/api/login', (req, res) => {
   }
   const token = jwt.sign({ id: user.id, username: user.username, role: user.role, realname: user.realname }, JWT_SECRET, { expiresIn: '7d' });
   res.json({ token, user: { id: user.id, username: user.username, realname: user.realname, role: user.role } });
+});
+
+app.post('/api/register', (req, res) => {
+  const username = String(req.body.username || '').trim();
+  const password = String(req.body.password || '');
+  const realname = String(req.body.realname || '').trim();
+  const role = String(req.body.role || '').trim();
+
+  if (!username || !password || !realname || !role) {
+    return res.status(400).json({ error: '缺少必要字段' });
+  }
+
+  if (role === '管理员') {
+    return res.status(403).json({ error: '不允许注册管理员' });
+  }
+
+  if (!selfRegisterRoles.includes(role)) {
+    return res.status(400).json({ error: '角色不合法' });
+  }
+
+  if (data.users.find(u => u.username === username)) {
+    return res.status(409).json({ error: '用户名已存在' });
+  }
+
+  const now = new Date().toISOString();
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  const newUser = {
+    id: uuidv4(),
+    username,
+    password: hashedPassword,
+    realname,
+    role,
+    created_at: now
+  };
+
+  data.users.push(newUser);
+  saveData();
+
+  res.status(201).json({ id: newUser.id, username: newUser.username, realname: newUser.realname, role: newUser.role });
 });
 
 app.get('/api/users', authMiddleware, adminMiddleware, (req, res) => {
@@ -340,6 +381,12 @@ app.post('/api/projects', authMiddleware, (req, res) => {
 app.put('/api/projects/:id', authMiddleware, (req, res) => {
   const index = data.projects.findIndex(p => p.id === req.params.id);
   if (index === -1) return res.status(404).json({ error: '项目不存在' });
+
+  if (req.user.role !== '管理员') {
+    const userProjects = getUserProjects(req.user);
+    const hasAccess = userProjects.some(p => p.id === req.params.id);
+    if (!hasAccess) return res.status(403).json({ error: '无权限访问此项目' });
+  }
   
   const allowedFields = [
     'project_name', 'customer_name', 'contract_amount', 'signed_date', 
@@ -377,12 +424,22 @@ app.put('/api/projects/:id', authMiddleware, (req, res) => {
   res.json({ success: true });
 });
 
-app.delete('/api/projects/:id', authMiddleware, (req, res) => {
+app.delete('/api/projects/:id', authMiddleware, adminMiddleware, (req, res) => {
   const index = data.projects.findIndex(p => p.id === req.params.id);
   if (index === -1) return res.status(404).json({ error: '项目不存在' });
-  
+
+  const now = new Date().toISOString();
+  const projectCode = data.projects[index].project_code;
   data.projects.splice(index, 1);
   data.projectLogs = data.projectLogs.filter(l => l.project_id !== req.params.id);
+  data.projectLogs.push({
+    id: uuidv4(),
+    project_id: req.params.id,
+    user_id: req.user.id,
+    action: '删除项目',
+    details: `删除项目 ${projectCode || ''}`.trim(),
+    created_at: now
+  });
   saveData();
   
   res.json({ success: true });

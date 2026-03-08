@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import Login from '../views/Login.vue'
+import Register from '../views/Register.vue'
 import Dashboard from '../views/Dashboard.vue'
 import ProjectList from '../views/ProjectList.vue'
 import ProjectDetail from '../views/ProjectDetail.vue'
@@ -10,6 +11,7 @@ import UserManagement from '../views/UserManagement.vue'
 const routes = [
   { path: '/', redirect: '/dashboard' },
   { path: '/login', component: Login },
+  { path: '/register', component: Register },
   { path: '/dashboard', component: Dashboard, meta: { requiresAuth: true } },
   { path: '/projects', component: ProjectList, meta: { requiresAuth: true } },
   { path: '/projects/:id', component: ProjectDetail, meta: { requiresAuth: true } },
@@ -27,7 +29,7 @@ router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   if (to.meta.requiresAuth && !token) {
     next('/login')
-  } else if (to.path === '/login' && token) {
+  } else if ((to.path === '/login' || to.path === '/register') && token) {
     next('/dashboard')
   } else if (to.meta.requiresAdmin) {
     const user = JSON.parse(localStorage.getItem('user') || '{}')

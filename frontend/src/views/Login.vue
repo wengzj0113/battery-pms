@@ -18,6 +18,9 @@
           </el-button>
         </el-form-item>
       </el-form>
+      <div class="login-actions">
+        <el-button text @click="router.push('/register')">注册新用户</el-button>
+      </div>
       <div class="login-tip">
         <p>默认账号：</p>
         <p>admin / admin123 (管理员)</p>
@@ -30,13 +33,14 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import { login } from '../api'
 
 const router = useRouter()
+const route = useRoute()
 const loading = ref(false)
 const form = reactive({ username: '', password: '' })
 
@@ -58,6 +62,13 @@ const handleLogin = async () => {
     loading.value = false
   }
 }
+
+onMounted(() => {
+  const prefillUsername = route.query.username
+  if (typeof prefillUsername === 'string' && prefillUsername.trim()) {
+    form.username = prefillUsername.trim()
+  }
+})
 </script>
 
 <style scoped>
@@ -105,6 +116,12 @@ const handleLogin = async () => {
 
 .login-tip p {
   margin: 4px 0;
+}
+
+.login-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 4px;
 }
 
 @media (max-width: 480px) {
