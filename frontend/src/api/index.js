@@ -44,5 +44,9 @@ export const getProject = (id) => api.get(`/projects/${id}`)
 export const createProject = (data) => api.post('/projects', data)
 export const updateProject = (id, data) => api.put(`/projects/${id}`, data)
 export const deleteProject = (id) => api.delete(`/projects/${id}`)
+export const getProjectCheckpoints = (projectId) => api.get(`/projects/${projectId}/checkpoints`)
+export const createProjectCheckpoint = (projectId, data) => api.post(`/projects/${projectId}/checkpoints`, data)
+export const updateProjectCheckpoint = (projectId, checkpointId, data) => api.put(`/projects/${projectId}/checkpoints/${checkpointId}`, data)
+export const deleteProjectCheckpoint = (projectId, checkpointId) => api.delete(`/projects/${projectId}/checkpoints/${checkpointId}`)
 
 export default api

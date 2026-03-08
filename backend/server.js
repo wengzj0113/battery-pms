@@ -72,6 +72,7 @@ const adminMiddleware = (req, res, next) => {
 };
 
 const selfRegisterRoles = ['技术', '采购', '生产', '交付', '财务', '售后'];
+const checkpointStatuses = ['未开始', '进行中', '已完成', '已延期'];
 
 const getUserProjects = (user) => {
   if (user.role === '管理员') {
@@ -93,6 +94,27 @@ const getUserProjects = (user) => {
   }
   
   return data.projects.filter(p => p[field] === user.id);
+};
+
+const hasProjectAccess = (user, projectId) => {
+  if (user.role === '管理员') return true;
+  const userProjects = getUserProjects(user);
+  return userProjects.some(p => p.id === projectId);
+};
+
+const isValidYmd = (value) => {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim());
+};
+
+const applyOverdueStatus = (checkpoint) => {
+  if (!checkpoint) return checkpoint;
+  if (checkpoint.status === '已完成') return checkpoint;
+  if (!isValidYmd(checkpoint.planned_date)) return checkpoint;
+  const today = new Date().toISOString().slice(0, 10);
+  if (checkpoint.planned_date < today) {
+    return { ...checkpoint, status: '已延期' };
+  }
+  return checkpoint;
 };
 
 app.post('/api/login', (req, res) => {
@@ -358,6 +380,7 @@ app.post('/api/projects', authMiddleware, (req, res) => {
     upper_software_version: req.body.upper_software_version || '',
     pcb_drawing_version: req.body.pcb_drawing_version || '',
     structure_drawing_version: req.body.structure_drawing_version || '',
+    checkpoints: [],
     creator_id: req.user.id,
     created_at: now,
     updated_at: now
@@ -382,11 +405,7 @@ app.put('/api/projects/:id', authMiddleware, (req, res) => {
   const index = data.projects.findIndex(p => p.id === req.params.id);
   if (index === -1) return res.status(404).json({ error: '项目不存在' });
 
-  if (req.user.role !== '管理员') {
-    const userProjects = getUserProjects(req.user);
-    const hasAccess = userProjects.some(p => p.id === req.params.id);
-    if (!hasAccess) return res.status(403).json({ error: '无权限访问此项目' });
-  }
+  if (!hasProjectAccess(req.user, req.params.id)) return res.status(403).json({ error: '无权限访问此项目' });
   
   const allowedFields = [
     'project_name', 'customer_name', 'contract_amount', 'signed_date', 
@@ -420,6 +439,127 @@ app.put('/api/projects/:id', authMiddleware, (req, res) => {
     created_at: new Date().toISOString()
   });
   
+  saveData();
+  res.json({ success: true });
+});
+
+app.get('/api/projects/:id/checkpoints', authMiddleware, (req, res) => {
+  const project = data.projects.find(p => p.id === req.params.id);
+  if (!project) return res.status(404).json({ error: '项目不存在' });
+  if (!hasProjectAccess(req.user, req.params.id)) return res.status(403).json({ error: '无权限访问此项目' });
+
+  const checkpoints = Array.isArray(project.checkpoints) ? project.checkpoints : [];
+  const result = checkpoints
+    .map(c => applyOverdueStatus(c))
+    .sort((a, b) => String(a.planned_date || '').localeCompare(String(b.planned_date || '')));
+  res.json(result);
+});
+
+app.post('/api/projects/:id/checkpoints', authMiddleware, (req, res) => {
+  const projectIndex = data.projects.findIndex(p => p.id === req.params.id);
+  if (projectIndex === -1) return res.status(404).json({ error: '项目不存在' });
+  if (!hasProjectAccess(req.user, req.params.id)) return res.status(403).json({ error: '无权限访问此项目' });
+
+  const title = String(req.body.title || '').trim();
+  const planned_date = String(req.body.planned_date || '').trim();
+  const owner_user_id = String(req.body.owner_user_id || '').trim();
+  const status = String(req.body.status || '未开始').trim();
+  const notes = String(req.body.notes || '').trim();
+
+  if (!title || !planned_date) return res.status(400).json({ error: '缺少必要字段' });
+  if (!isValidYmd(planned_date)) return res.status(400).json({ error: '计划日期格式不正确' });
+  if (!checkpointStatuses.includes(status)) return res.status(400).json({ error: '状态不合法' });
+
+  const now = new Date().toISOString();
+  const checkpoint = {
+    id: uuidv4(),
+    title,
+    planned_date,
+    owner_user_id,
+    status,
+    notes,
+    created_at: now,
+    updated_at: now
+  };
+
+  if (!Array.isArray(data.projects[projectIndex].checkpoints)) data.projects[projectIndex].checkpoints = [];
+  data.projects[projectIndex].checkpoints.push(checkpoint);
+  data.projects[projectIndex].updated_at = now;
+
+  data.projectLogs.push({
+    id: uuidv4(),
+    project_id: req.params.id,
+    user_id: req.user.id,
+    action: '新增卡点',
+    details: checkpoint.title,
+    created_at: now
+  });
+
+  saveData();
+  res.status(201).json(applyOverdueStatus(checkpoint));
+});
+
+app.put('/api/projects/:id/checkpoints/:checkpointId', authMiddleware, (req, res) => {
+  const projectIndex = data.projects.findIndex(p => p.id === req.params.id);
+  if (projectIndex === -1) return res.status(404).json({ error: '项目不存在' });
+  if (!hasProjectAccess(req.user, req.params.id)) return res.status(403).json({ error: '无权限访问此项目' });
+
+  const checkpoints = Array.isArray(data.projects[projectIndex].checkpoints) ? data.projects[projectIndex].checkpoints : [];
+  const idx = checkpoints.findIndex(c => c.id === req.params.checkpointId);
+  if (idx === -1) return res.status(404).json({ error: '卡点不存在' });
+
+  const next = { ...checkpoints[idx] };
+  if (req.body.title !== undefined) next.title = String(req.body.title || '').trim();
+  if (req.body.planned_date !== undefined) next.planned_date = String(req.body.planned_date || '').trim();
+  if (req.body.owner_user_id !== undefined) next.owner_user_id = String(req.body.owner_user_id || '').trim();
+  if (req.body.status !== undefined) next.status = String(req.body.status || '').trim();
+  if (req.body.notes !== undefined) next.notes = String(req.body.notes || '').trim();
+
+  if (!next.title || !next.planned_date) return res.status(400).json({ error: '缺少必要字段' });
+  if (!isValidYmd(next.planned_date)) return res.status(400).json({ error: '计划日期格式不正确' });
+  if (!checkpointStatuses.includes(next.status)) return res.status(400).json({ error: '状态不合法' });
+
+  const now = new Date().toISOString();
+  next.updated_at = now;
+  data.projects[projectIndex].checkpoints[idx] = next;
+  data.projects[projectIndex].updated_at = now;
+
+  data.projectLogs.push({
+    id: uuidv4(),
+    project_id: req.params.id,
+    user_id: req.user.id,
+    action: '更新卡点',
+    details: next.title,
+    created_at: now
+  });
+
+  saveData();
+  res.json(applyOverdueStatus(next));
+});
+
+app.delete('/api/projects/:id/checkpoints/:checkpointId', authMiddleware, (req, res) => {
+  const projectIndex = data.projects.findIndex(p => p.id === req.params.id);
+  if (projectIndex === -1) return res.status(404).json({ error: '项目不存在' });
+  if (!hasProjectAccess(req.user, req.params.id)) return res.status(403).json({ error: '无权限访问此项目' });
+
+  const checkpoints = Array.isArray(data.projects[projectIndex].checkpoints) ? data.projects[projectIndex].checkpoints : [];
+  const idx = checkpoints.findIndex(c => c.id === req.params.checkpointId);
+  if (idx === -1) return res.status(404).json({ error: '卡点不存在' });
+
+  const now = new Date().toISOString();
+  const removed = checkpoints[idx];
+  data.projects[projectIndex].checkpoints.splice(idx, 1);
+  data.projects[projectIndex].updated_at = now;
+
+  data.projectLogs.push({
+    id: uuidv4(),
+    project_id: req.params.id,
+    user_id: req.user.id,
+    action: '删除卡点',
+    details: removed && removed.title ? removed.title : '',
+    created_at: now
+  });
+
   saveData();
   res.json({ success: true });
 });
