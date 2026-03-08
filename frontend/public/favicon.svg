@@ -1,14 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <rect width="512" height="512" fill="#ffffff"/>
-  <polygon points="140,360 240,360 180,440" fill="#e4c21f"/>
-  <path d="M110 120 L230 120 L270 220 L170 220 Z" fill="#173f8f"/>
-  <path d="M80 220 L170 220 L250 420 L160 420 Z" fill="#173f8f"/>
-  <path d="M250 120 C320 120 360 150 360 190 C360 220 340 240 300 250 C350 260 380 290 380 330 C380 380 330 420 250 420 L230 420 L230 360 L250 360 C290 360 310 345 310 325 C310 305 290 295 250 290 L250 240 C290 235 300 220 300 205 C300 190 285 175 250 175 L230 175 L230 120 Z" fill="#173f8f"/>
-  <g fill="#173f8f">
-    <rect x="70" y="70" width="48" height="48" rx="6"/>
-    <rect x="130" y="54" width="48" height="48" rx="6"/>
-    <rect x="182" y="94" width="48" height="48" rx="6"/>
-    <rect x="98" y="130" width="48" height="48" rx="6"/>
-  </g>
-</svg>
 
+  <polygon points="78,388 236,512 78,512" fill="#e2b700"/>
+
+  <g fill="#1d3f8f">
+    <rect x="96" y="58" width="54" height="54" rx="6"/>
+    <rect x="162" y="42" width="54" height="54" rx="6"/>
+    <rect x="216" y="88" width="54" height="54" rx="6"/>
+    <rect x="132" y="122" width="54" height="54" rx="6"/>
+  </g>
+
+  <polygon points="132,82 276,82 206,456 62,456" fill="#1d3f8f"/>
+  <polygon points="180,82 316,82 246,456 110,456" fill="#1d3f8f"/>
+
+  <path d="M395 90 C505 90 505 210 418 242 C335 270 340 320 430 345 C518 370 515 475 392 475" stroke="#1d3f8f" stroke-width="104" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M395 90 C505 90 505 210 418 242 C335 270 340 320 430 345 C518 370 515 475 392 475" stroke="#ffffff" stroke-width="34" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

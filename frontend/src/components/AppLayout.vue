@@ -3,7 +3,7 @@
     <el-container>
       <el-aside class="aside" width="220px">
         <div class="logo">
-          <img class="logo-img" src="/logo.svg" alt="logo" />
+          <img class="logo-img" :src="logoSrc" alt="logo" @error="onLogoError" />
           <span>徐力电子项目管理系统</span>
         </div>
         <el-menu
@@ -74,7 +74,7 @@
 
     <el-drawer v-model="drawerOpen" direction="ltr" size="240px" :with-header="false">
       <div class="drawer-logo">
-        <img class="logo-img" src="/logo.svg" alt="logo" />
+        <img class="logo-img" :src="logoSrc" alt="logo" @error="onLogoError" />
         <span>徐力电子项目管理系统</span>
       </div>
       <el-menu
@@ -123,6 +123,13 @@ defineProps({
 const router = useRouter()
 const route = useRoute()
 const drawerOpen = ref(false)
+const logoSrc = ref('/logo.png')
+
+const onLogoError = () => {
+  if (logoSrc.value !== '/logo.svg') {
+    logoSrc.value = '/logo.svg'
+  }
+}
 
 const user = reactive(JSON.parse(localStorage.getItem('user') || '{}'))
 const activeMenu = computed(() => route.path)

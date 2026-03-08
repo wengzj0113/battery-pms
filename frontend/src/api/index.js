@@ -40,6 +40,7 @@ export const updateUserPassword = (id, password) => api.put(`/users/${id}/passwo
 export const getCurrentUser = () => api.get('/users/me')
 export const getDashboardStats = () => api.get('/dashboard/stats')
 export const getDashboardCheckpoints = (params) => api.get('/dashboard/checkpoints', { params })
+export const getDashboardProjects = (params) => api.get('/dashboard/projects', { params })
 export const getProjects = (params) => api.get('/projects', { params })
 export const getProject = (id) => api.get(`/projects/${id}`)
 export const createProject = (data) => api.post('/projects', data)

@@ -9,6 +9,7 @@ import ProjectEdit from '../views/ProjectEdit.vue'
 import ProjectPlanManagement from '../views/ProjectPlanManagement.vue'
 import UserManagement from '../views/UserManagement.vue'
 import LoginLogs from '../views/LoginLogs.vue'
+import DashboardProjects from '../views/DashboardProjects.vue'
 
 const routes = [
   { path: '/', redirect: '/dashboard' },
@@ -20,6 +21,7 @@ const routes = [
   { path: '/projects/:id/edit', component: ProjectEdit, meta: { requiresAuth: true } },
   { path: '/project/new', component: ProjectEdit, meta: { requiresAuth: true } },
   { path: '/project-plans', component: ProjectPlanManagement, meta: { requiresAuth: true } },
+  { path: '/dashboard/projects', component: DashboardProjects, meta: { requiresAuth: true } },
   { path: '/users', component: UserManagement, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/login-logs', component: LoginLogs, meta: { requiresAuth: true, requiresAdmin: true } }
 ]

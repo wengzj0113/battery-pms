@@ -391,6 +391,50 @@ app.get('/api/dashboard/checkpoints', authMiddleware, (req, res) => {
   res.json(items.slice(0, limit));
 });
 
+app.get('/api/dashboard/projects', authMiddleware, (req, res) => {
+  const type = String(req.query.type || '').trim();
+  const validTypes = ['inProgress', 'expiring', 'accepted', 'all'];
+  if (!type || !validTypes.includes(type)) return res.status(400).json({ error: 'type 参数不合法' });
+
+  const limitRaw = parseInt(String(req.query.limit || ''), 10);
+  const offsetRaw = parseInt(String(req.query.offset || ''), 10);
+  const limit = Math.min(Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 50, 200);
+  const offset = Number.isFinite(offsetRaw) && offsetRaw > 0 ? offsetRaw : 0;
+
+  const userProjects = getUserProjects(req.user);
+  const now = new Date();
+  const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  let filtered = userProjects;
+  if (type === 'inProgress') {
+    filtered = userProjects.filter(p => p.project_status === '进行中');
+  } else if (type === 'accepted') {
+    filtered = userProjects.filter(p => p.acceptance_status === '已验收');
+  } else if (type === 'expiring') {
+    filtered = userProjects.filter(p => p.planned_delivery_date && new Date(p.planned_delivery_date) <= sevenDaysLater && p.acceptance_status !== '已验收');
+  }
+
+  const toItem = (p) => ({
+    id: p.id,
+    project_code: p.project_code,
+    project_name: p.project_name,
+    customer_name: p.customer_name,
+    current_stage: p.current_stage,
+    project_status: p.project_status,
+    planned_delivery_date: p.planned_delivery_date,
+    acceptance_status: p.acceptance_status
+  });
+
+  if (type === 'expiring') {
+    filtered = filtered.slice().sort((a, b) => String(a.planned_delivery_date || '').localeCompare(String(b.planned_delivery_date || '')));
+  } else {
+    filtered = filtered.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+
+  const total = filtered.length;
+  res.json({ total, items: filtered.slice(offset, offset + limit).map(toItem) });
+});
+
 app.get('/api/projects', authMiddleware, (req, res) => {
   const { status, stage, search } = req.query;
   let projects = getUserProjects(req.user);

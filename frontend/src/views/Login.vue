@@ -2,7 +2,7 @@
   <div class="login-container">
     <div class="login-box">
       <div class="login-header">
-        <img class="brand-logo" src="/logo.svg" alt="logo" />
+        <img class="brand-logo" :src="logoSrc" alt="logo" @error="onLogoError" />
         <h1>徐力电子项目管理系统</h1>
       </div>
       <el-form :model="form" @submit.prevent="handleLogin">
@@ -38,6 +38,13 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import { login } from '../api'
+
+const logoSrc = ref('/logo.png')
+const onLogoError = () => {
+  if (logoSrc.value !== '/logo.svg') {
+    logoSrc.value = '/logo.svg'
+  }
+}
 
 const router = useRouter()
 const route = useRoute()

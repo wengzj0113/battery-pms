@@ -3,7 +3,7 @@
     <div class="stats-container">
       <el-row :gutter="20">
         <el-col :xs="12" :sm="12" :md="6">
-                <div class="stat-card stat-primary">
+                <div class="stat-card stat-primary stat-clickable" @click="goDrilldown('all')">
                   <div class="stat-icon"><el-icon :size="32"><Folder /></el-icon></div>
                   <div class="stat-content">
                     <div class="stat-value">{{ stats.totalProjects }}</div>
@@ -12,7 +12,7 @@
                 </div>
         </el-col>
         <el-col :xs="12" :sm="12" :md="6">
-                <div class="stat-card stat-success">
+                <div class="stat-card stat-success stat-clickable" @click="goDrilldown('inProgress')">
                   <div class="stat-icon"><el-icon :size="32"><SuccessFilled /></el-icon></div>
                   <div class="stat-content">
                     <div class="stat-value">{{ stats.inProgressProjects }}</div>
@@ -21,7 +21,7 @@
                 </div>
         </el-col>
         <el-col :xs="12" :sm="12" :md="6">
-                <div class="stat-card stat-warning">
+                <div class="stat-card stat-warning stat-clickable" @click="goDrilldown('expiring')">
                   <div class="stat-icon"><el-icon :size="32"><WarningFilled /></el-icon></div>
                   <div class="stat-content">
                     <div class="stat-value">{{ stats.expiringProjects }}</div>
@@ -30,7 +30,7 @@
                 </div>
         </el-col>
         <el-col :xs="12" :sm="12" :md="6">
-                <div class="stat-card stat-info">
+                <div class="stat-card stat-info stat-clickable" @click="goDrilldown('accepted')">
                   <div class="stat-icon"><el-icon :size="32"><CircleCheckFilled /></el-icon></div>
                   <div class="stat-content">
                     <div class="stat-value">{{ stats.completedProjects }}</div>
@@ -154,12 +154,14 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import AppLayout from '../components/AppLayout.vue'
 import { getDashboardStats, getDashboardCheckpoints, getProjects } from '../api'
 import { Money } from '@element-plus/icons-vue'
 
+const router = useRouter()
 const user = reactive(JSON.parse(localStorage.getItem('user') || '{}'))
 const stats = reactive({
   totalProjects: 0,
@@ -194,6 +196,10 @@ const getStageType = (stage) => {
 const getCheckpointTagType = (status) => {
   const map = { '未开始': 'info', '进行中': 'primary', '已完成': 'success', '已延期': 'danger' }
   return map[status] || 'info'
+}
+
+const goDrilldown = (type) => {
+  router.push({ path: '/dashboard/projects', query: { type } })
 }
 
 const loadStats = async () => {
@@ -274,6 +280,8 @@ onMounted(() => {
 <style scoped>
 .stats-container { margin-bottom: 20px; }
 .stat-card { background: #fff; border-radius: 8px; padding: 24px; display: flex; align-items: center; gap: 16px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08); }
+.stat-clickable { cursor: pointer; user-select: none; }
+.stat-clickable:hover { box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12); }
 .stat-primary .stat-icon { color: #409eff; background: #ecf5ff; padding: 16px; border-radius: 8px; }
 .stat-success .stat-icon { color: #67c23a; background: #f0f9eb; padding: 16px; border-radius: 8px; }
 .stat-warning .stat-icon { color: #e6a23c; background: #fdf6ec; padding: 16px; border-radius: 8px; }

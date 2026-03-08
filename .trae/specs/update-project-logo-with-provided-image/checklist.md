@@ -1,0 +1,5 @@
+- [ ] 用户提供的图片文件已正确放入 `frontend/public/` 目录。
+- [ ] `frontend/index.html` 中的 favicon 链接已指向新的图标文件且格式设置正确。
+- [ ] 登录页面 (Login.vue) 中的 Logo 已使用新图片。
+- [ ] 侧边栏布局 (AppLayout.vue) 中的 Logo 已使用新图片。
+- [ ] 本地预览页面图标展示正常。
