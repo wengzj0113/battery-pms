@@ -53,13 +53,7 @@
                 </el-col>
                 <el-col :xs="24" :sm="12" :md="8">
                   <el-form-item label="通道数量">
-                    <el-select v-model="form.channel_count" placeholder="选择通道数" style="width: 100%">
-                      <el-option label="8通道" :value="8" />
-                      <el-option label="16通道" :value="16" />
-                      <el-option label="32通道" :value="32" />
-                      <el-option label="64通道" :value="64" />
-                      <el-option label="128通道" :value="128" />
-                    </el-select>
+                    <el-input-number v-model="form.channel_count" :min="1" :step="1" :precision="0" style="width: 100%" />
                   </el-form-item>
                 </el-col>
                 <el-col :span="24">
