@@ -1,18 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- 背景白色 -->
   <rect width="512" height="512" fill="#ffffff"/>
+  
+  <!-- 左下角黄色三角形 -->
+  <polygon points="100,380 240,512 80,512" fill="#e2b700"/>
 
-  <polygon points="78,388 236,512 78,512" fill="#e2b700"/>
-
+  <!-- 左上角像素方块 -->
   <g fill="#1d3f8f">
-    <rect x="96" y="58" width="54" height="54" rx="6"/>
-    <rect x="162" y="42" width="54" height="54" rx="6"/>
-    <rect x="216" y="88" width="54" height="54" rx="6"/>
-    <rect x="132" y="122" width="54" height="54" rx="6"/>
+    <rect x="80" y="40" width="40" height="40"/>
+    <rect x="130" y="20" width="40" height="40"/>
+    <rect x="180" y="60" width="40" height="40"/>
+    <rect x="110" y="90" width="40" height="40"/>
   </g>
 
-  <polygon points="132,82 276,82 206,456 62,456" fill="#1d3f8f"/>
-  <polygon points="180,82 316,82 246,456 110,456" fill="#1d3f8f"/>
+  <!-- 主体蓝色斜杠 ( stylized X part 1 ) -->
+  <path d="M120 100 L300 100 L220 480 L60 480 Z" fill="#1d3f8f"/>
+  <path d="M180 100 L340 100 L260 480 L120 480 Z" fill="#1d3f8f"/>
 
-  <path d="M395 90 C505 90 505 210 418 242 C335 270 340 320 430 345 C518 370 515 475 392 475" stroke="#1d3f8f" stroke-width="104" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M395 90 C505 90 505 210 418 242 C335 270 340 320 430 345 C518 370 515 475 392 475" stroke="#ffffff" stroke-width="34" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 右侧蓝色曲线 ( stylized X part 2 / S curve ) -->
+  <path d="M380 80 C500 80 500 220 400 250 C320 280 320 340 420 370 C500 400 500 480 380 480" stroke="#1d3f8f" stroke-width="90" fill="none" stroke-linecap="round"/>
 </svg>
