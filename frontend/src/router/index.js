@@ -6,7 +6,9 @@ import Dashboard from '../views/Dashboard.vue'
 import ProjectList from '../views/ProjectList.vue'
 import ProjectDetail from '../views/ProjectDetail.vue'
 import ProjectEdit from '../views/ProjectEdit.vue'
+import ProjectPlanManagement from '../views/ProjectPlanManagement.vue'
 import UserManagement from '../views/UserManagement.vue'
+import LoginLogs from '../views/LoginLogs.vue'
 
 const routes = [
   { path: '/', redirect: '/dashboard' },
@@ -17,7 +19,9 @@ const routes = [
   { path: '/projects/:id', component: ProjectDetail, meta: { requiresAuth: true } },
   { path: '/projects/:id/edit', component: ProjectEdit, meta: { requiresAuth: true } },
   { path: '/project/new', component: ProjectEdit, meta: { requiresAuth: true } },
-  { path: '/users', component: UserManagement, meta: { requiresAuth: true, requiresAdmin: true } }
+  { path: '/project-plans', component: ProjectPlanManagement, meta: { requiresAuth: true } },
+  { path: '/users', component: UserManagement, meta: { requiresAuth: true, requiresAdmin: true } },
+  { path: '/login-logs', component: LoginLogs, meta: { requiresAuth: true, requiresAdmin: true } }
 ]
 
 const router = createRouter({

@@ -3,7 +3,7 @@
     <div class="register-box">
       <div class="register-header">
         <h1>用户注册</h1>
-        <h2>锂电池化成分容设备项目管理系统</h2>
+        <h2>徐力电子项目管理系统</h2>
       </div>
 
       <el-form ref="formRef" :model="form" :rules="rules" @submit.prevent="handleRegister">
@@ -143,4 +143,3 @@ const handleRegister = async () => {
   }
 }
 </style>
-

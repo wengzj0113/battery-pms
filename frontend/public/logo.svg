@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#ffffff"/>
+  <polygon points="140,360 240,360 180,440" fill="#e4c21f"/>
+  <path d="M110 120 L230 120 L270 220 L170 220 Z" fill="#173f8f"/>
+  <path d="M80 220 L170 220 L250 420 L160 420 Z" fill="#173f8f"/>
+  <path d="M250 120 C320 120 360 150 360 190 C360 220 340 240 300 250 C350 260 380 290 380 330 C380 380 330 420 250 420 L230 420 L230 360 L250 360 C290 360 310 345 310 325 C310 305 290 295 250 290 L250 240 C290 235 300 220 300 205 C300 190 285 175 250 175 L230 175 L230 120 Z" fill="#173f8f"/>
+  <g fill="#173f8f">
+    <rect x="70" y="70" width="48" height="48" rx="6"/>
+    <rect x="130" y="54" width="48" height="48" rx="6"/>
+    <rect x="182" y="94" width="48" height="48" rx="6"/>
+    <rect x="98" y="130" width="48" height="48" rx="6"/>
+  </g>
+</svg>
+

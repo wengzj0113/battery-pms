@@ -86,6 +86,34 @@
     <el-card shadow="hover" style="margin-top: 20px">
       <template #header>
         <div class="card-header">
+          <span>项目卡点汇总</span>
+          <el-button type="primary" size="small" @click="$router.push('/projects')">查看项目</el-button>
+        </div>
+      </template>
+      <div class="table-scroll">
+        <el-table :data="dashboardCheckpoints" stripe v-loading="checkpointsLoading" style="width: 100%; min-width: 920px">
+          <el-table-column prop="project_code" label="项目编号" width="140" />
+          <el-table-column prop="project_name" label="项目名称" min-width="180" show-overflow-tooltip />
+          <el-table-column prop="title" label="卡点" min-width="220" show-overflow-tooltip />
+          <el-table-column prop="planned_date" label="计划日期" width="120" />
+          <el-table-column prop="status" label="状态" width="100">
+            <template #default="{ row }">
+              <el-tag :type="getCheckpointTagType(row.status)" size="small">{{ row.status }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="$router.push(`/projects/${row.project_id}`)">查看</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div v-if="!checkpointsLoading && dashboardCheckpoints.length === 0" class="empty-tip">暂无卡点</div>
+      </div>
+    </el-card>
+
+    <el-card shadow="hover" style="margin-top: 20px">
+      <template #header>
+        <div class="card-header">
           <span>全部项目列表</span>
           <el-button type="primary" size="small" @click="$router.push('/projects')">查看全部</el-button>
         </div>
@@ -129,7 +157,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import AppLayout from '../components/AppLayout.vue'
-import { getDashboardStats, getProjects } from '../api'
+import { getDashboardStats, getDashboardCheckpoints, getProjects } from '../api'
 import { Money } from '@element-plus/icons-vue'
 
 const user = reactive(JSON.parse(localStorage.getItem('user') || '{}'))
@@ -145,6 +173,8 @@ const stats = reactive({
 const projects = ref([])
 const chartRef1 = ref(null)
 const chartRef2 = ref(null)
+const dashboardCheckpoints = ref([])
+const checkpointsLoading = ref(false)
 
 const getStageType = (stage) => {
   const types = {
@@ -161,6 +191,11 @@ const getStageType = (stage) => {
   return types[stage] || 'info'
 }
 
+const getCheckpointTagType = (status) => {
+  const map = { '未开始': 'info', '进行中': 'primary', '已完成': 'success', '已延期': 'danger' }
+  return map[status] || 'info'
+}
+
 const loadStats = async () => {
   try {
     const data = await getDashboardStats()
@@ -168,6 +203,17 @@ const loadStats = async () => {
     initCharts()
   } catch (err) {
     ElMessage.error('加载统计数据失败')
+  }
+}
+
+const loadDashboardCheckpoints = async () => {
+  checkpointsLoading.value = true
+  try {
+    dashboardCheckpoints.value = await getDashboardCheckpoints({ limit: 50 })
+  } catch (err) {
+    ElMessage.error(err.response?.data?.error || '加载卡点汇总失败')
+  } finally {
+    checkpointsLoading.value = false
   }
 }
 
@@ -220,6 +266,7 @@ const initCharts = () => {
 
 onMounted(() => {
   loadStats()
+  loadDashboardCheckpoints()
   loadProjects()
 })
 </script>
@@ -239,4 +286,5 @@ onMounted(() => {
 .month-stat-value { font-size: 36px; font-weight: bold; color: #409eff; }
 .month-stat-label { font-size: 14px; color: #909399; margin-top: 8px; }
 .table-scroll { overflow-x: auto; }
+.empty-tip { text-align: center; color: #909399; padding: 12px 0; }
 </style>

@@ -17,15 +17,25 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-let data = { users: [], projects: [], projectLogs: [] };
+let data = { users: [], projects: [], projectLogs: [], loginLogs: [] };
 
 if (fs.existsSync(DATA_FILE)) {
   try {
     data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
   } catch (e) {
-    data = { users: [], projects: [], projectLogs: [] };
+    data = { users: [], projects: [], projectLogs: [], loginLogs: [] };
   }
 }
+
+if (!Array.isArray(data.users)) data.users = [];
+if (!Array.isArray(data.projects)) data.projects = [];
+if (!Array.isArray(data.projectLogs)) data.projectLogs = [];
+if (!Array.isArray(data.loginLogs)) data.loginLogs = [];
+
+data.projects.forEach(p => {
+  if (!Array.isArray(p.checkpoints)) p.checkpoints = [];
+  if (!Array.isArray(p.plans)) p.plans = [];
+});
 
 const saveData = () => {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
@@ -117,13 +127,54 @@ const applyOverdueStatus = (checkpoint) => {
   return checkpoint;
 };
 
+const applyPlanOverdueStatus = (plan) => {
+  if (!plan) return plan;
+  if (plan.status === '已完成') return plan;
+  if (!isValidYmd(plan.end_date)) return plan;
+  const today = new Date().toISOString().slice(0, 10);
+  if (plan.end_date < today) {
+    return { ...plan, status: '已延期' };
+  }
+  return plan;
+};
+
+const getRequestIp = (req) => {
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.trim()) return xff.split(',')[0].trim();
+  return req.socket?.remoteAddress || '';
+};
+
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   const user = data.users.find(u => u.username === username);
   if (!user || !bcrypt.compareSync(password, user.password)) {
+    data.loginLogs.unshift({
+      id: uuidv4(),
+      username: String(username || ''),
+      user_id: '',
+      success: false,
+      ip: getRequestIp(req),
+      user_agent: String(req.headers['user-agent'] || ''),
+      created_at: new Date().toISOString()
+    });
+    data.loginLogs = data.loginLogs.slice(0, 5000);
+    saveData();
     return res.status(401).json({ error: '用户名或密码错误' });
   }
   const token = jwt.sign({ id: user.id, username: user.username, role: user.role, realname: user.realname }, JWT_SECRET, { expiresIn: '7d' });
+
+  data.loginLogs.unshift({
+    id: uuidv4(),
+    username: user.username,
+    user_id: user.id,
+    success: true,
+    ip: getRequestIp(req),
+    user_agent: String(req.headers['user-agent'] || ''),
+    created_at: new Date().toISOString()
+  });
+  data.loginLogs = data.loginLogs.slice(0, 5000);
+  saveData();
+
   res.json({ token, user: { id: user.id, username: user.username, realname: user.realname, role: user.role } });
 });
 
@@ -168,6 +219,28 @@ app.post('/api/register', (req, res) => {
 
 app.get('/api/users', authMiddleware, adminMiddleware, (req, res) => {
   res.json(data.users.map(u => ({ id: u.id, username: u.username, realname: u.realname, role: u.role, created_at: u.created_at })));
+});
+
+app.get('/api/login-logs', authMiddleware, adminMiddleware, (req, res) => {
+  const limitRaw = parseInt(String(req.query.limit || ''), 10);
+  const offsetRaw = parseInt(String(req.query.offset || ''), 10);
+  const limit = Math.min(Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 50, 200);
+  const offset = Number.isFinite(offsetRaw) && offsetRaw > 0 ? offsetRaw : 0;
+
+  let logs = Array.isArray(data.loginLogs) ? data.loginLogs.slice() : [];
+  const qUsername = String(req.query.username || '').trim().toLowerCase();
+  if (qUsername) logs = logs.filter(l => String(l.username || '').toLowerCase().includes(qUsername));
+  if (req.query.success !== undefined && String(req.query.success).trim() !== '') {
+    const s = String(req.query.success).trim();
+    if (s === 'true' || s === 'false') logs = logs.filter(l => Boolean(l.success) === (s === 'true'));
+  }
+  const from = String(req.query.from || '').trim();
+  const to = String(req.query.to || '').trim();
+  if (from) logs = logs.filter(l => String(l.created_at || '') >= from);
+  if (to) logs = logs.filter(l => String(l.created_at || '') <= to);
+
+  logs.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  res.json({ total: logs.length, items: logs.slice(offset, offset + limit) });
 });
 
 app.get('/api/users/me', authMiddleware, (req, res) => {
@@ -290,6 +363,34 @@ app.get('/api/dashboard/stats', authMiddleware, (req, res) => {
   });
 });
 
+app.get('/api/dashboard/checkpoints', authMiddleware, (req, res) => {
+  const limitRaw = parseInt(String(req.query.limit || ''), 10);
+  const limit = Math.min(Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 50, 200);
+
+  const userProjects = getUserProjects(req.user);
+  const items = [];
+  userProjects.forEach(p => {
+    const cps = Array.isArray(p.checkpoints) ? p.checkpoints : [];
+    cps.forEach(c => {
+      const cc = applyOverdueStatus(c);
+      items.push({
+        project_id: p.id,
+        project_code: p.project_code,
+        project_name: p.project_name,
+        ...cc
+      });
+    });
+  });
+
+  items.sort((a, b) => {
+    const d = String(a.planned_date || '').localeCompare(String(b.planned_date || ''));
+    if (d !== 0) return d;
+    return String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || ''));
+  });
+
+  res.json(items.slice(0, limit));
+});
+
 app.get('/api/projects', authMiddleware, (req, res) => {
   const { status, stage, search } = req.query;
   let projects = getUserProjects(req.user);
@@ -381,6 +482,7 @@ app.post('/api/projects', authMiddleware, (req, res) => {
     pcb_drawing_version: req.body.pcb_drawing_version || '',
     structure_drawing_version: req.body.structure_drawing_version || '',
     checkpoints: [],
+    plans: [],
     creator_id: req.user.id,
     created_at: now,
     updated_at: now
@@ -556,6 +658,132 @@ app.delete('/api/projects/:id/checkpoints/:checkpointId', authMiddleware, (req, 
     project_id: req.params.id,
     user_id: req.user.id,
     action: '删除卡点',
+    details: removed && removed.title ? removed.title : '',
+    created_at: now
+  });
+
+  saveData();
+  res.json({ success: true });
+});
+
+app.get('/api/projects/:id/plans', authMiddleware, (req, res) => {
+  const project = data.projects.find(p => p.id === req.params.id);
+  if (!project) return res.status(404).json({ error: '项目不存在' });
+  if (!hasProjectAccess(req.user, req.params.id)) return res.status(403).json({ error: '无权限访问此项目' });
+
+  const plans = Array.isArray(project.plans) ? project.plans : [];
+  const result = plans
+    .map(p => applyPlanOverdueStatus(p))
+    .sort((a, b) => String(a.start_date || '').localeCompare(String(b.start_date || '')));
+  res.json(result);
+});
+
+app.post('/api/projects/:id/plans', authMiddleware, (req, res) => {
+  const projectIndex = data.projects.findIndex(p => p.id === req.params.id);
+  if (projectIndex === -1) return res.status(404).json({ error: '项目不存在' });
+  if (!hasProjectAccess(req.user, req.params.id)) return res.status(403).json({ error: '无权限访问此项目' });
+
+  const title = String(req.body.title || '').trim();
+  const start_date = String(req.body.start_date || '').trim();
+  const end_date = String(req.body.end_date || '').trim();
+  const owner_user_id = String(req.body.owner_user_id || '').trim();
+  const status = String(req.body.status || '未开始').trim();
+  const notes = String(req.body.notes || '').trim();
+
+  if (!title || !start_date || !end_date) return res.status(400).json({ error: '缺少必要字段' });
+  if (!isValidYmd(start_date) || !isValidYmd(end_date)) return res.status(400).json({ error: '日期格式不正确' });
+  if (end_date < start_date) return res.status(400).json({ error: '结束日期不能早于开始日期' });
+  if (!checkpointStatuses.includes(status)) return res.status(400).json({ error: '状态不合法' });
+
+  const now = new Date().toISOString();
+  const plan = {
+    id: uuidv4(),
+    title,
+    start_date,
+    end_date,
+    owner_user_id,
+    status,
+    notes,
+    created_at: now,
+    updated_at: now
+  };
+
+  if (!Array.isArray(data.projects[projectIndex].plans)) data.projects[projectIndex].plans = [];
+  data.projects[projectIndex].plans.push(plan);
+  data.projects[projectIndex].updated_at = now;
+
+  data.projectLogs.push({
+    id: uuidv4(),
+    project_id: req.params.id,
+    user_id: req.user.id,
+    action: '新增计划项',
+    details: plan.title,
+    created_at: now
+  });
+
+  saveData();
+  res.status(201).json(applyPlanOverdueStatus(plan));
+});
+
+app.put('/api/projects/:id/plans/:planId', authMiddleware, (req, res) => {
+  const projectIndex = data.projects.findIndex(p => p.id === req.params.id);
+  if (projectIndex === -1) return res.status(404).json({ error: '项目不存在' });
+  if (!hasProjectAccess(req.user, req.params.id)) return res.status(403).json({ error: '无权限访问此项目' });
+
+  const plans = Array.isArray(data.projects[projectIndex].plans) ? data.projects[projectIndex].plans : [];
+  const idx = plans.findIndex(p => p.id === req.params.planId);
+  if (idx === -1) return res.status(404).json({ error: '计划项不存在' });
+
+  const next = { ...plans[idx] };
+  if (req.body.title !== undefined) next.title = String(req.body.title || '').trim();
+  if (req.body.start_date !== undefined) next.start_date = String(req.body.start_date || '').trim();
+  if (req.body.end_date !== undefined) next.end_date = String(req.body.end_date || '').trim();
+  if (req.body.owner_user_id !== undefined) next.owner_user_id = String(req.body.owner_user_id || '').trim();
+  if (req.body.status !== undefined) next.status = String(req.body.status || '').trim();
+  if (req.body.notes !== undefined) next.notes = String(req.body.notes || '').trim();
+
+  if (!next.title || !next.start_date || !next.end_date) return res.status(400).json({ error: '缺少必要字段' });
+  if (!isValidYmd(next.start_date) || !isValidYmd(next.end_date)) return res.status(400).json({ error: '日期格式不正确' });
+  if (next.end_date < next.start_date) return res.status(400).json({ error: '结束日期不能早于开始日期' });
+  if (!checkpointStatuses.includes(next.status)) return res.status(400).json({ error: '状态不合法' });
+
+  const now = new Date().toISOString();
+  next.updated_at = now;
+  data.projects[projectIndex].plans[idx] = next;
+  data.projects[projectIndex].updated_at = now;
+
+  data.projectLogs.push({
+    id: uuidv4(),
+    project_id: req.params.id,
+    user_id: req.user.id,
+    action: '更新计划项',
+    details: next.title,
+    created_at: now
+  });
+
+  saveData();
+  res.json(applyPlanOverdueStatus(next));
+});
+
+app.delete('/api/projects/:id/plans/:planId', authMiddleware, (req, res) => {
+  const projectIndex = data.projects.findIndex(p => p.id === req.params.id);
+  if (projectIndex === -1) return res.status(404).json({ error: '项目不存在' });
+  if (!hasProjectAccess(req.user, req.params.id)) return res.status(403).json({ error: '无权限访问此项目' });
+
+  const plans = Array.isArray(data.projects[projectIndex].plans) ? data.projects[projectIndex].plans : [];
+  const idx = plans.findIndex(p => p.id === req.params.planId);
+  if (idx === -1) return res.status(404).json({ error: '计划项不存在' });
+
+  const now = new Date().toISOString();
+  const removed = plans[idx];
+  data.projects[projectIndex].plans.splice(idx, 1);
+  data.projects[projectIndex].updated_at = now;
+
+  data.projectLogs.push({
+    id: uuidv4(),
+    project_id: req.params.id,
+    user_id: req.user.id,
+    action: '删除计划项',
     details: removed && removed.title ? removed.title : '',
     created_at: now
   });

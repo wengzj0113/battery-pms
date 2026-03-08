@@ -39,6 +39,7 @@ export const deleteUser = (id) => api.delete(`/users/${id}`)
 export const updateUserPassword = (id, password) => api.put(`/users/${id}/password`, { password })
 export const getCurrentUser = () => api.get('/users/me')
 export const getDashboardStats = () => api.get('/dashboard/stats')
+export const getDashboardCheckpoints = (params) => api.get('/dashboard/checkpoints', { params })
 export const getProjects = (params) => api.get('/projects', { params })
 export const getProject = (id) => api.get(`/projects/${id}`)
 export const createProject = (data) => api.post('/projects', data)
@@ -48,5 +49,10 @@ export const getProjectCheckpoints = (projectId) => api.get(`/projects/${project
 export const createProjectCheckpoint = (projectId, data) => api.post(`/projects/${projectId}/checkpoints`, data)
 export const updateProjectCheckpoint = (projectId, checkpointId, data) => api.put(`/projects/${projectId}/checkpoints/${checkpointId}`, data)
 export const deleteProjectCheckpoint = (projectId, checkpointId) => api.delete(`/projects/${projectId}/checkpoints/${checkpointId}`)
+export const getProjectPlans = (projectId) => api.get(`/projects/${projectId}/plans`)
+export const createProjectPlan = (projectId, data) => api.post(`/projects/${projectId}/plans`, data)
+export const updateProjectPlan = (projectId, planId, data) => api.put(`/projects/${projectId}/plans/${planId}`, data)
+export const deleteProjectPlan = (projectId, planId) => api.delete(`/projects/${projectId}/plans/${planId}`)
+export const getLoginLogs = (params) => api.get('/login-logs', { params })
 
 export default api

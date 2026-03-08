@@ -3,8 +3,8 @@
     <el-container>
       <el-aside class="aside" width="220px">
         <div class="logo">
-          <el-icon :size="28"><Monitor /></el-icon>
-          <span>项目管理系统</span>
+          <img class="logo-img" src="/logo.svg" alt="logo" />
+          <span>徐力电子项目管理系统</span>
         </div>
         <el-menu
           :default-active="activeMenu"
@@ -21,6 +21,10 @@
             <el-icon><FolderOpened /></el-icon>
             <span>项目管理</span>
           </el-menu-item>
+          <el-menu-item index="/project-plans">
+            <el-icon><Calendar /></el-icon>
+            <span>项目计划管理</span>
+          </el-menu-item>
           <el-menu-item index="/project/new">
             <el-icon><Plus /></el-icon>
             <span>新建项目</span>
@@ -28,6 +32,10 @@
           <el-menu-item v-if="user.role === '管理员'" index="/users">
             <el-icon><User /></el-icon>
             <span>用户管理</span>
+          </el-menu-item>
+          <el-menu-item v-if="user.role === '管理员'" index="/login-logs">
+            <el-icon><Document /></el-icon>
+            <span>登录日志</span>
           </el-menu-item>
         </el-menu>
       </el-aside>
@@ -66,8 +74,8 @@
 
     <el-drawer v-model="drawerOpen" direction="ltr" size="240px" :with-header="false">
       <div class="drawer-logo">
-        <el-icon :size="24"><Monitor /></el-icon>
-        <span>项目管理系统</span>
+        <img class="logo-img" src="/logo.svg" alt="logo" />
+        <span>徐力电子项目管理系统</span>
       </div>
       <el-menu
         :default-active="activeMenu"
@@ -82,6 +90,10 @@
           <el-icon><FolderOpened /></el-icon>
           <span>项目管理</span>
         </el-menu-item>
+        <el-menu-item index="/project-plans">
+          <el-icon><Calendar /></el-icon>
+          <span>项目计划管理</span>
+        </el-menu-item>
         <el-menu-item index="/project/new">
           <el-icon><Plus /></el-icon>
           <span>新建项目</span>
@@ -89,6 +101,10 @@
         <el-menu-item v-if="user.role === '管理员'" index="/users">
           <el-icon><User /></el-icon>
           <span>用户管理</span>
+        </el-menu-item>
+        <el-menu-item v-if="user.role === '管理员'" index="/login-logs">
+          <el-icon><Document /></el-icon>
+          <span>登录日志</span>
         </el-menu-item>
       </el-menu>
     </el-drawer>
@@ -98,7 +114,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { DataAnalysis, FolderOpened, Menu, Monitor, Plus, User } from '@element-plus/icons-vue'
+import { Calendar, DataAnalysis, Document, FolderOpened, Menu, Plus, User } from '@element-plus/icons-vue'
 
 defineProps({
   title: { type: String, default: '' }
@@ -147,6 +163,12 @@ const handleCommand = (cmd) => {
   font-weight: bold;
   gap: 8px;
   border-bottom: 1px solid #2a2a4e;
+}
+
+.logo-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 .el-menu {

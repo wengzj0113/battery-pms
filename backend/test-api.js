@@ -60,6 +60,10 @@ async function run() {
 
   let adminToken = '';
   let techToken = '';
+  let purchaseToken = '';
+  let techUserId = '';
+  let testProjectId = '';
+  let testPlanId = '';
 
   // 测试1: 管理员登录
   await test('1. 管理员登录', async () => {
@@ -76,7 +80,17 @@ async function run() {
     if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
     techToken = res.data.token;
     if (!techToken) throw new Error('未获取到token');
+    techUserId = res.data.user.id;
+    if (!techUserId) throw new Error('未获取到用户ID');
     console.log(`   技术: ${res.data.user.realname} (${res.data.user.role})`);
+  });
+
+  await test('2.1 采购角色登录', async () => {
+    const res = await request('POST', '/api/login', { username: 'purchase', password: 'purchase123' });
+    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
+    purchaseToken = res.data.token;
+    if (!purchaseToken) throw new Error('未获取到token');
+    console.log(`   采购: ${res.data.user.realname} (${res.data.user.role})`);
   });
 
   // 测试3: 获取用户列表（需管理员权限）
@@ -176,6 +190,38 @@ async function run() {
     const res = await request('GET', '/api/projects', null, techToken);
     if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
     console.log(`   技术可查看项目数: ${res.data.length}`);
+  });
+
+  await test('12.1 创建计划测试项目（管理员）', async () => {
+    const res = await request('POST', '/api/projects', { project_name: '计划测试项目', technical_user_id: techUserId }, adminToken);
+    if (res.status !== 201) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
+    testProjectId = res.data.id;
+    if (!testProjectId) throw new Error('未获取到项目ID');
+    console.log(`   测试项目ID: ${testProjectId}`);
+  });
+
+  await test('12.2 新增计划项（日期无效应失败）', async () => {
+    const res = await request('POST', `/api/projects/${testProjectId}/plans`, { title: '无效计划', start_date: '2026-03-10', end_date: '2026-03-01' }, adminToken);
+    if (res.status !== 400) throw new Error(`应返回400，实际返回${res.status}`);
+  });
+
+  await test('12.3 新增计划项（管理员）', async () => {
+    const res = await request('POST', `/api/projects/${testProjectId}/plans`, { title: '计划A', start_date: '2026-03-01', end_date: '2026-03-10' }, adminToken);
+    if (res.status !== 201) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
+    testPlanId = res.data.id;
+    if (!testPlanId) throw new Error('未获取到计划项ID');
+  });
+
+  await test('12.4 获取计划项列表（技术可访问）', async () => {
+    const res = await request('GET', `/api/projects/${testProjectId}/plans`, null, techToken);
+    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
+    if (!Array.isArray(res.data)) throw new Error('返回数据格式错误');
+    if (!res.data.some(p => p.id === testPlanId)) throw new Error('未找到计划项');
+  });
+
+  await test('12.5 非相关角色访问计划项（应拒绝）', async () => {
+    const res = await request('GET', `/api/projects/${testProjectId}/plans`, null, purchaseToken);
+    if (res.status !== 403) throw new Error(`应返回403，实际返回${res.status}`);
   });
 
   // 测试13: 仪表盘统计 - 管理员

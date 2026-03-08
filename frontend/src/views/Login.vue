@@ -2,8 +2,8 @@
   <div class="login-container">
     <div class="login-box">
       <div class="login-header">
-        <h1>锂电池化成分容设备</h1>
-        <h2>项目管理系统</h2>
+        <img class="brand-logo" src="/logo.svg" alt="logo" />
+        <h1>徐力电子项目管理系统</h1>
       </div>
       <el-form :model="form" @submit.prevent="handleLogin">
         <el-form-item>
@@ -93,16 +93,17 @@ onMounted(() => {
   margin-bottom: 40px;
 }
 
+.brand-logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  margin-bottom: 12px;
+}
+
 .login-header h1 {
   font-size: 24px;
   color: #1a1a2e;
   margin-bottom: 8px;
-}
-
-.login-header h2 {
-  font-size: 16px;
-  color: #666;
-  font-weight: normal;
 }
 
 .login-tip {
@@ -137,10 +138,6 @@ onMounted(() => {
 
   .login-header h1 {
     font-size: 20px;
-  }
-
-  .login-header h2 {
-    font-size: 14px;
   }
 
   .login-tip {
