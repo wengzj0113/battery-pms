@@ -11,20 +11,40 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
 const JWT_SECRET = 'battery-pms-secret-key-2026';
-const DATA_FILE = path.join(__dirname, 'data.json');
+const DATA_FILE = process.env.DATA_FILE || process.env.DATA_FILE_PATH || path.join(__dirname, 'data.json');
+const REQUIRE_DATA_FILE = process.env.REQUIRE_DATA_FILE === 'true';
+const SEED_DEFAULT_USERS = process.env.SEED_DEFAULT_USERS ? process.env.SEED_DEFAULT_USERS === 'true' : process.env.NODE_ENV !== 'production';
 
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-let data = { users: [], projects: [], projectLogs: [], loginLogs: [] };
+const emptyData = () => ({ users: [], projects: [], projectLogs: [], loginLogs: [] });
+let data = emptyData();
 
-if (fs.existsSync(DATA_FILE)) {
-  try {
-    data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-  } catch (e) {
-    data = { users: [], projects: [], projectLogs: [], loginLogs: [] };
+const loadData = () => {
+  if (!fs.existsSync(DATA_FILE)) {
+    if (REQUIRE_DATA_FILE) {
+      throw new Error(`DATA_FILE not found: ${DATA_FILE}`);
+    }
+    return;
   }
+  const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+  try {
+    data = JSON.parse(raw);
+  } catch (e) {
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    const corruptPath = `${DATA_FILE}.corrupt.${ts}`;
+    fs.writeFileSync(corruptPath, raw, 'utf-8');
+    throw new Error(`Failed to parse DATA_FILE. Backup written to: ${corruptPath}`);
+  }
+};
+
+try {
+  loadData();
+} catch (e) {
+  console.error(e.message || e);
+  process.exit(1);
 }
 
 if (!Array.isArray(data.users)) data.users = [];
@@ -32,17 +52,22 @@ if (!Array.isArray(data.projects)) data.projects = [];
 if (!Array.isArray(data.projectLogs)) data.projectLogs = [];
 if (!Array.isArray(data.loginLogs)) data.loginLogs = [];
 
-data.projects.forEach(p => {
-  if (!Array.isArray(p.checkpoints)) p.checkpoints = [];
-  if (!Array.isArray(p.plans)) p.plans = [];
-  if (p.device_count === undefined) p.device_count = 0;
-});
-
 const saveData = () => {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+  const dir = path.dirname(DATA_FILE);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  const json = JSON.stringify(data, null, 2);
+  const tmp = `${DATA_FILE}.tmp`;
+  if (fs.existsSync(DATA_FILE)) {
+    fs.copyFileSync(DATA_FILE, `${DATA_FILE}.bak`);
+  }
+  fs.writeFileSync(tmp, json, 'utf-8');
+  fs.rmSync(DATA_FILE, { force: true });
+  fs.renameSync(tmp, DATA_FILE);
 };
 
-if (data.users.length === 0) {
+if (data.users.length === 0 && SEED_DEFAULT_USERS) {
   const adminPassword = bcrypt.hashSync('admin123', 10);
   const techPassword = bcrypt.hashSync('tech123', 10);
   const purchasePassword = bcrypt.hashSync('purchase123', 10);
@@ -115,6 +140,16 @@ const hasProjectAccess = (user, projectId) => {
 
 const isValidYmd = (value) => {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim());
+};
+
+const normalizeProjectForResponse = (project) => {
+  const device_count = project.device_count === undefined ? 0 : project.device_count;
+  return {
+    ...project,
+    device_count,
+    checkpoints: Array.isArray(project.checkpoints) ? project.checkpoints : [],
+    plans: Array.isArray(project.plans) ? project.plans : []
+  };
 };
 
 const applyOverdueStatus = (checkpoint) => {
@@ -452,7 +487,7 @@ app.get('/api/projects', authMiddleware, (req, res) => {
   }
   
   projects.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  res.json(projects);
+  res.json(projects.map(normalizeProjectForResponse));
 });
 
 app.get('/api/projects/:id', authMiddleware, (req, res) => {
@@ -472,7 +507,7 @@ app.get('/api/projects/:id', authMiddleware, (req, res) => {
       return { ...l, realname: user ? user.realname : '未知' };
     });
   
-  res.json({ ...project, logs });
+  res.json({ ...normalizeProjectForResponse(project), logs });
 });
 
 app.post('/api/projects', authMiddleware, (req, res) => {
