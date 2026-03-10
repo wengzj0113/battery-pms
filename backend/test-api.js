@@ -185,11 +185,25 @@ async function run() {
     console.log(`   项目数量: ${res.data.length}`);
   });
 
-  // 测试12: 项目列表 - 技术只能看自己的项目
-  await test('12. 项目列表 - 技术角色过滤', async () => {
+  // 测试12: 项目列表 - 非管理员也能看全部项目
+  await test('12. 项目列表 - 技术角色可查看全部', async () => {
     const res = await request('GET', '/api/projects', null, techToken);
     if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
     console.log(`   技术可查看项目数: ${res.data.length}`);
+  });
+
+  let techProjectId = '';
+  await test('12.0 技术创建项目并可读取/更新', async () => {
+    const createRes = await request('POST', '/api/projects', { project_name: '技术创建项目' }, techToken);
+    if (createRes.status !== 201) throw new Error(`HTTP ${createRes.status}: ${createRes.data.error}`);
+    techProjectId = createRes.data.id;
+    if (!techProjectId) throw new Error('未获取到项目ID');
+
+    const getRes = await request('GET', `/api/projects/${techProjectId}`, null, techToken);
+    if (getRes.status !== 200) throw new Error(`HTTP ${getRes.status}: ${getRes.data.error}`);
+
+    const updateRes = await request('PUT', `/api/projects/${techProjectId}`, { project_name: '技术创建项目-已更新' }, techToken);
+    if (updateRes.status !== 200) throw new Error(`HTTP ${updateRes.status}: ${updateRes.data.error}`);
   });
 
   await test('12.1 创建计划测试项目（管理员）', async () => {
@@ -233,9 +247,9 @@ async function run() {
     if (!res.data.some(p => p.id === testPlanId)) throw new Error('未找到计划项');
   });
 
-  await test('12.5 非相关角色访问计划项（应拒绝）', async () => {
+  await test('12.5 采购角色访问计划项（允许）', async () => {
     const res = await request('GET', `/api/projects/${testProjectId}/plans`, null, purchaseToken);
-    if (res.status !== 403) throw new Error(`应返回403，实际返回${res.status}`);
+    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
   });
 
   // 测试13: 仪表盘统计 - 管理员

@@ -111,31 +111,11 @@ const selfRegisterRoles = ['技术', '采购', '生产', '交付', '财务', '�
 const checkpointStatuses = ['未开始', '进行中', '已完成', '已延期'];
 
 const getUserProjects = (user) => {
-  if (user.role === '管理员') {
-    return data.projects;
-  }
-  
-  const roleFieldMap = {
-    '技术': 'technical_user_id',
-    '采购': 'purchase_user_id',
-    '生产': 'production_user_id',
-    '交付': 'delivery_user_id',
-    '财务': 'finance_user_id',
-    '售后': 'after_sale_user_id'
-  };
-  
-  const field = roleFieldMap[user.role];
-  if (!field) {
-    return [];
-  }
-  
-  return data.projects.filter(p => p[field] === user.id);
+  return data.projects;
 };
 
 const hasProjectAccess = (user, projectId) => {
-  if (user.role === '管理员') return true;
-  const userProjects = getUserProjects(user);
-  return userProjects.some(p => p.id === projectId);
+  return true;
 };
 
 const isValidYmd = (value) => {
@@ -493,10 +473,6 @@ app.get('/api/projects', authMiddleware, (req, res) => {
 app.get('/api/projects/:id', authMiddleware, (req, res) => {
   const project = data.projects.find(p => p.id === req.params.id);
   if (!project) return res.status(404).json({ error: '项目不存在' });
-  
-  const userProjects = getUserProjects(req.user);
-  const hasAccess = userProjects.some(p => p.id === req.params.id);
-  if (!hasAccess) return res.status(403).json({ error: '无权限访问此项目' });
   
   const logs = data.projectLogs
     .filter(l => l.project_id === req.params.id)

@@ -8,4 +8,5 @@ npm-debug.log*
 *.local
 .env
 data.json
+*.bak
 uploads/

@@ -23,7 +23,7 @@
                   </el-form-item>
                 </el-col>
                 <el-col :xs="24" :sm="12" :md="6">
-                  <el-form-item label="合同金额">
+                  <el-form-item v-if="user.role === '管理员'" label="合同金额">
                     <el-input-number v-model="form.contract_amount" :min="0" :precision="2" style="width: 100%" />
                   </el-form-item>
                 </el-col>
@@ -194,12 +194,12 @@
 
               <el-divider content-position="left">财务信息</el-divider>
               <el-row :gutter="20">
-                <el-col :xs="24" :sm="12" :md="8">
+                <el-col v-if="user.role === '管理员'" :span="8">
                   <el-form-item label="应收金额">
                     <el-input-number v-model="form.receivable_amount" :min="0" :precision="2" style="width: 100%" />
                   </el-form-item>
                 </el-col>
-                <el-col :xs="24" :sm="12" :md="8">
+                <el-col v-if="user.role === '管理员'" :span="8">
                   <el-form-item label="已收金额">
                     <el-input-number v-model="form.received_amount" :min="0" :precision="2" style="width: 100%" />
                   </el-form-item>
@@ -314,12 +314,18 @@ const handleSubmit = async () => {
   await formRef.value.validate()
   submitting.value = true
   try {
+    const payload = { ...form }
+    if (user.role !== '管理员') {
+      delete payload.contract_amount
+      delete payload.receivable_amount
+      delete payload.received_amount
+    }
     if (isEdit) {
-      await updateProject(id, form)
+      await updateProject(id, payload)
       ElMessage.success('更新成功')
       router.push(`/projects/${id}`)
     } else {
-      const res = await createProject(form)
+      const res = await createProject(payload)
       ElMessage.success('创建成功')
       router.push(`/projects/${res.id}`)
     }
