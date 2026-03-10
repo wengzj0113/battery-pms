@@ -11,7 +11,7 @@
             <el-option label="已暂停" value="已暂停" />
             <el-option label="已关闭" value="已关闭" />
           </el-select>
-          <el-select v-model="filterStage" placeholder="当前阶段" clearable class="toolbar-select" @change="loadProjects">
+          <el-select v-model="filterStage" placeholder="当前阶段" clearable filterable popper-class="stage-select-dropdown" class="toolbar-select" @change="loadProjects">
             <el-option v-for="s in stages" :key="s" :label="s" :value="s" />
           </el-select>
         </div>
@@ -148,6 +148,8 @@ onMounted(() => {
 </script>
 
 <style scoped>
+:global(.stage-select-dropdown .el-select-dropdown__wrap) { max-height: 420px; }
+
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar-left { display: flex; align-items: center; }
 .toolbar-input { width: 280px; }

@@ -77,7 +77,7 @@
                 </el-col>
                 <el-col :xs="24" :sm="24" :md="12">
                   <el-form-item label="当前阶段">
-                    <el-select v-model="form.current_stage" style="width: 100%">
+                    <el-select v-model="form.current_stage" filterable popper-class="stage-select-dropdown" style="width: 100%">
                       <el-option v-for="s in stages" :key="s" :label="s" :value="s" />
                     </el-select>
                   </el-form-item>
@@ -355,6 +355,8 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+:global(.stage-select-dropdown .el-select-dropdown__wrap) { max-height: 420px; }
+
 @media (max-width: 768px) {
   :deep(.el-form-item) {
     margin-bottom: 16px;
