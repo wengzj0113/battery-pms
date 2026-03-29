@@ -55,7 +55,8 @@ const handleLogin = async () => {
     localStorage.setItem('token', res.token)
     localStorage.setItem('user', JSON.stringify(res.user))
     ElMessage.success('登录成功')
-    router.push('/dashboard')
+    const redirect = typeof route.query.redirect === 'string' && route.query.redirect ? route.query.redirect : '/dashboard'
+    router.push(redirect)
   } catch (err) {
     ElMessage.error(err.response?.data?.error || '登录失败')
   } finally {

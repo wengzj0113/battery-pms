@@ -22,9 +22,12 @@ api.interceptors.response.use(
   response => response.data,
   error => {
     if (error.response?.status === 401) {
+      const redirect = encodeURIComponent(window.location.pathname + window.location.search)
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      window.location.href = '/login'
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = `/login?redirect=${redirect}`
+      }
     }
     return Promise.reject(error)
   }

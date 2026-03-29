@@ -164,15 +164,15 @@
                   </div>
                 </el-card>
               </el-col>
-              <el-col :span="8">
+              <el-col v-if="isAdmin" :span="8">
                 <el-card shadow="hover" class="module-card">
                   <template #header>
                     <div class="card-header"><el-icon><Money /></el-icon>财务模块</div>
                   </template>
                   <div class="module-content">
-                    <div v-if="isAdmin" class="module-item"><span class="label">应收金额：</span>¥{{ (project.receivable_amount || 0).toLocaleString() }}</div>
-                    <div v-if="isAdmin" class="module-item"><span class="label">已收金额：</span>¥{{ (project.received_amount || 0).toLocaleString() }}</div>
-                    <div v-if="isAdmin" class="module-item"><span class="label">合同金额：</span>¥{{ (project.contract_amount || 0).toLocaleString() }}</div>
+                    <div class="module-item"><span class="label">应收金额：</span>¥{{ (project.receivable_amount || 0).toLocaleString() }}</div>
+                    <div class="module-item"><span class="label">已收金额：</span>¥{{ (project.received_amount || 0).toLocaleString() }}</div>
+                    <div class="module-item"><span class="label">合同金额：</span>¥{{ (project.contract_amount || 0).toLocaleString() }}</div>
                   </div>
                 </el-card>
               </el-col>

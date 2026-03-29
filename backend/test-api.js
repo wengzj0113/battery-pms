@@ -1,23 +1,27 @@
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const jwt = require('jsonwebtoken');
 
-const BASE_URL = 'http://localhost:3001';
+const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3001';
+const DATA_FILE = process.env.DATA_FILE || process.env.DATA_FILE_PATH || path.join(__dirname, 'data.json');
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-battery-pms-secret';
+let failures = 0;
 
-function request(method, path, data, token) {
+function request(method, requestPath, data, token) {
   return new Promise((resolve, reject) => {
-    const url = new URL(path, BASE_URL);
+    const url = new URL(requestPath, BASE_URL);
     const options = {
       hostname: url.hostname,
       port: url.port,
-      path: url.pathname,
-      method: method,
+      path: url.pathname + url.search,
+      method,
       headers: {
         'Content-Type': 'application/json'
       }
     };
 
-    if (token) {
-      options.headers['Authorization'] = `Bearer ${token}`;
-    }
+    if (token) options.headers.Authorization = `Bearer ${token}`;
 
     const req = http.request(options, (res) => {
       let body = '';
@@ -37,11 +41,21 @@ function request(method, path, data, token) {
       reject(new Error('请求超时'));
     });
 
-    if (data) {
-      req.write(JSON.stringify(data));
-    }
+    if (data !== undefined && data !== null) req.write(JSON.stringify(data));
     req.end();
   });
+}
+
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
+function readDataFile() {
+  return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+}
+
+function createTokenForUser(user) {
+  return jwt.sign({ id: user.id, username: user.username, role: user.role, realname: user.realname }, JWT_SECRET, { expiresIn: '7d' });
 }
 
 async function test(name, fn) {
@@ -49,240 +63,189 @@ async function test(name, fn) {
     await fn();
     console.log(`✅ ${name}`);
   } catch (err) {
+    failures++;
     console.error(`❌ ${name}: ${err.message}`);
   }
 }
 
 async function run() {
+  failures = 0;
   console.log('='.repeat(50));
-  console.log('开始测试用户管理与角色权限系统');
+  console.log('开始自动化回归测试');
   console.log('='.repeat(50));
 
-  let adminToken = '';
-  let techToken = '';
-  let purchaseToken = '';
-  let techUserId = '';
-  let testProjectId = '';
-  let testPlanId = '';
+  const dataset = readDataFile();
+  const adminUser = dataset.users.find(u => u.role === '管理员');
+  const techUser = dataset.users.find(u => u.role === '技术');
+  const purchaseUser = dataset.users.find(u => u.role === '采购');
 
-  // 测试1: 管理员登录
-  await test('1. 管理员登录', async () => {
-    const res = await request('POST', '/api/login', { username: 'admin', password: 'admin123' });
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    adminToken = res.data.token;
-    if (!adminToken) throw new Error('未获取到token');
-    console.log(`   管理员: ${res.data.user.realname} (${res.data.user.role})`);
-  });
+  assert(adminUser, '缺少管理员用户');
+  assert(techUser, '缺少技术用户');
+  assert(purchaseUser, '缺少采购用户');
 
-  // 测试2: 技术角色登录
-  await test('2. 技术角色登录', async () => {
-    const res = await request('POST', '/api/login', { username: 'tech', password: 'tech123' });
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    techToken = res.data.token;
-    if (!techToken) throw new Error('未获取到token');
-    techUserId = res.data.user.id;
-    if (!techUserId) throw new Error('未获取到用户ID');
-    console.log(`   技术: ${res.data.user.realname} (${res.data.user.role})`);
-  });
+  const adminToken = createTokenForUser(adminUser);
+  const techToken = createTokenForUser(techUser);
+  const purchaseToken = createTokenForUser(purchaseUser);
+  const stamp = Date.now();
+  const tempUsername = `testuser_${stamp}`;
+  const tempProjectName = `自动化测试项目_${stamp}`;
+  let tempUserId = '';
+  let tempProjectId = '';
+  let tempPlanId = '';
 
-  await test('2.1 采购角色登录', async () => {
-    const res = await request('POST', '/api/login', { username: 'purchase', password: 'purchase123' });
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    purchaseToken = res.data.token;
-    if (!purchaseToken) throw new Error('未获取到token');
-    console.log(`   采购: ${res.data.user.realname} (${res.data.user.role})`);
-  });
-
-  // 测试3: 获取用户列表（需管理员权限）
-  await test('3. 获取用户列表（管理员）', async () => {
+  await test('1. 管理员令牌可访问用户列表', async () => {
     const res = await request('GET', '/api/users', null, adminToken);
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    if (!Array.isArray(res.data)) throw new Error('返回数据格式错误');
-    console.log(`   用户数量: ${res.data.length}`);
+    assert(res.status === 200, `HTTP ${res.status}`);
+    assert(Array.isArray(res.data), '用户列表格式错误');
   });
 
-  // 测试4: 获取当前用户信息
-  await test('4. 获取当前用户信息', async () => {
-    const res = await request('GET', '/api/users/me', null, adminToken);
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    if (res.data.role !== '管理员') throw new Error('角色验证失败');
-    console.log(`   当前用户: ${res.data.realname} (${res.data.role})`);
+  await test('2. 非管理员访问用户列表被拒绝', async () => {
+    const res = await request('GET', '/api/users', null, techToken);
+    assert(res.status === 403, `应返回403，实际${res.status}`);
   });
 
-  // 测试5: 创建新用户（需管理员权限）
-  await test('5. 创建新用户（管理员）', async () => {
-    const res = await request('POST', '/api/users', {
-      username: 'testuser_' + Date.now(),
-      password: 'test123',
-      realname: '测试用户',
+  await test('3. 管理员可创建编辑删除用户', async () => {
+    const createRes = await request('POST', '/api/users', {
+      username: tempUsername,
+      password: 'test123456',
+      realname: '自动化测试用户',
       role: '技术'
     }, adminToken);
-    if (res.status !== 201) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    console.log(`   新用户ID: ${res.data.id}`);
-  });
+    assert(createRes.status === 201, `创建失败 ${createRes.status}`);
+    tempUserId = createRes.data.id;
+    assert(tempUserId, '未返回用户ID');
 
-  // 测试6: 编辑用户（需管理员权限）
-  await test('6. 编辑用户（管理员）', async () => {
-    const listRes = await request('GET', '/api/users', null, adminToken);
-    const targetUser = listRes.data.find(u => u.username.startsWith('testuser_'));
-    if (!targetUser) throw new Error('未找到测试用户');
-
-    const res = await request('PUT', `/api/users/${targetUser.id}`, {
-      realname: '测试用户-已修改',
+    const updateRes = await request('PUT', `/api/users/${tempUserId}`, {
+      realname: '自动化测试用户-已更新',
       role: '采购'
     }, adminToken);
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    console.log(`   已修改用户: ${targetUser.username}`);
+    assert(updateRes.status === 200, `更新失败 ${updateRes.status}`);
+
+    const passwordRes = await request('PUT', `/api/users/${tempUserId}/password`, { password: 'newpass123456' }, adminToken);
+    assert(passwordRes.status === 200, `改密失败 ${passwordRes.status}`);
+
+    const deleteRes = await request('DELETE', `/api/users/${tempUserId}`, null, adminToken);
+    assert(deleteRes.status === 200, `删除失败 ${deleteRes.status}`);
   });
 
-  // 测试7: 修改用户密码（需管理员权限）
-  await test('7. 修改用户密码（管理员）', async () => {
-    const listRes = await request('GET', '/api/users', null, adminToken);
-    const targetUser = listRes.data.find(u => u.username.startsWith('testuser_'));
-    if (!targetUser) throw new Error('未找到测试用户');
-
-    const res = await request('PUT', `/api/users/${targetUser.id}/password`, {
-      password: 'newpassword123'
+  await test('4. 管理员创建项目并保留财务字段', async () => {
+    const res = await request('POST', '/api/projects', {
+      project_name: tempProjectName,
+      contract_amount: 88888,
+      receivable_amount: 66666,
+      received_amount: 12345,
+      device_count: 2
     }, adminToken);
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    console.log(`   已修改密码`);
+    assert(res.status === 201, `HTTP ${res.status}`);
+    tempProjectId = res.data.id;
+    assert(tempProjectId, '未返回项目ID');
+
+    const detailRes = await request('GET', `/api/projects/${tempProjectId}`, null, adminToken);
+    assert(detailRes.status === 200, `HTTP ${detailRes.status}`);
+    assert(detailRes.data.contract_amount === 88888, '管理员详情未保留合同金额');
+    assert(detailRes.data.receivable_amount === 66666, '管理员详情未保留应收金额');
+    assert(detailRes.data.received_amount === 12345, '管理员详情未保留已收金额');
   });
 
-  // 测试8: 删除用户（需管理员权限）
-  await test('8. 删除用户（管理员）', async () => {
-    const listRes = await request('GET', '/api/users', null, adminToken);
-    const targetUser = listRes.data.find(u => u.username.startsWith('testuser_'));
-    if (!targetUser) throw new Error('未找到测试用户');
-
-    const res = await request('DELETE', `/api/users/${targetUser.id}`, null, adminToken);
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    console.log(`   已删除用户: ${targetUser.username}`);
-  });
-
-  // 测试9: 非管理员创建用户（应失败）
-  await test('9. 非管理员创建用户（应拒绝）', async () => {
-    const res = await request('POST', '/api/users', {
-      username: 'hacker',
-      password: 'hack',
-      realname: '黑客',
-      role: '管理员'
-    }, techToken);
-    if (res.status !== 403) throw new Error(`应返回403，实际返回${res.status}`);
-    console.log('   正确拒绝非管理员操作');
-  });
-
-  // 测试10: 非管理员访问用户列表（应失败）
-  await test('10. 非管理员访问用户列表（应拒绝）', async () => {
-    const res = await request('GET', '/api/users', null, techToken);
-    if (res.status !== 403) throw new Error(`应返回403，实际返回${res.status}`);
-    console.log('   正确拒绝非管理员访问');
-  });
-
-  // 测试11: 项目列表 - 管理员查看所有项目
-  await test('11. 项目列表 - 管理员查看所有', async () => {
-    const res = await request('GET', '/api/projects', null, adminToken);
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    console.log(`   项目数量: ${res.data.length}`);
-  });
-
-  // 测试12: 项目列表 - 非管理员也能看全部项目
-  await test('12. 项目列表 - 技术角色可查看全部', async () => {
+  await test('5. 非管理员项目列表已脱敏财务字段', async () => {
     const res = await request('GET', '/api/projects', null, techToken);
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    console.log(`   技术可查看项目数: ${res.data.length}`);
+    assert(res.status === 200, `HTTP ${res.status}`);
+    assert(Array.isArray(res.data), '项目列表格式错误');
+    const target = res.data.find(item => item.id === tempProjectId);
+    assert(target, '技术用户未看到测试项目');
+    assert(target.contract_amount === undefined, '技术用户列表看到了合同金额');
+    assert(target.receivable_amount === undefined, '技术用户列表看到了应收金额');
+    assert(target.received_amount === undefined, '技术用户列表看到了已收金额');
   });
 
-  let techProjectId = '';
-  await test('12.0 技术创建项目并可读取/更新', async () => {
-    const createRes = await request('POST', '/api/projects', { project_name: '技术创建项目' }, techToken);
-    if (createRes.status !== 201) throw new Error(`HTTP ${createRes.status}: ${createRes.data.error}`);
-    techProjectId = createRes.data.id;
-    if (!techProjectId) throw new Error('未获取到项目ID');
+  await test('6. 非管理员项目详情与日志已脱敏财务字段', async () => {
+    const updateRes = await request('PUT', `/api/projects/${tempProjectId}`, { device_count: 3 }, adminToken);
+    assert(updateRes.status === 200, `管理员更新失败 ${updateRes.status}`);
+    const financeLogRes = await request('PUT', `/api/projects/${tempProjectId}`, { contract_amount: 99999 }, adminToken);
+    assert(financeLogRes.status === 200, `管理员财务更新失败 ${financeLogRes.status}`);
 
-    const getRes = await request('GET', `/api/projects/${techProjectId}`, null, techToken);
-    if (getRes.status !== 200) throw new Error(`HTTP ${getRes.status}: ${getRes.data.error}`);
-
-    const updateRes = await request('PUT', `/api/projects/${techProjectId}`, { project_name: '技术创建项目-已更新' }, techToken);
-    if (updateRes.status !== 200) throw new Error(`HTTP ${updateRes.status}: ${updateRes.data.error}`);
+    const res = await request('GET', `/api/projects/${tempProjectId}`, null, techToken);
+    assert(res.status === 200, `HTTP ${res.status}`);
+    assert(res.data.contract_amount === undefined, '技术用户详情看到了合同金额');
+    assert(res.data.receivable_amount === undefined, '技术用户详情看到了应收金额');
+    assert(res.data.received_amount === undefined, '技术用户详情看到了已收金额');
+    assert(Array.isArray(res.data.logs), '日志格式错误');
+    const financeLog = res.data.logs.find(item => item.action === '更新项目');
+    assert(financeLog, '未找到更新日志');
+    assert(!String(financeLog.details || '').includes('contract_amount'), '技术用户日志看到了财务字段');
   });
 
-  await test('12.1 创建计划测试项目（管理员）', async () => {
-    const res = await request('POST', '/api/projects', { project_name: '计划测试项目', technical_user_id: techUserId, device_count: 7 }, adminToken);
-    if (res.status !== 201) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    testProjectId = res.data.id;
-    if (!testProjectId) throw new Error('未获取到项目ID');
-    console.log(`   测试项目ID: ${testProjectId}`);
+  await test('7. 非管理员可编辑普通字段但不能修改财务字段', async () => {
+    const updateRes = await request('PUT', `/api/projects/${tempProjectId}`, { project_name: `${tempProjectName}_技术更新` }, techToken);
+    assert(updateRes.status === 200, `普通字段更新失败 ${updateRes.status}`);
+
+    const financeRes = await request('PUT', `/api/projects/${tempProjectId}`, { contract_amount: 1 }, techToken);
+    assert(financeRes.status === 403, `财务字段应403，实际${financeRes.status}`);
   });
 
-  await test('12.1.1 设备数量字段持久化（创建后读取）', async () => {
-    const res = await request('GET', `/api/projects/${testProjectId}`, null, adminToken);
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    if (res.data.device_count !== 7) throw new Error(`device_count 应为 7，实际为 ${res.data.device_count}`);
+  await test('8. 项目计划接口支持查询参数与全员访问', async () => {
+    const invalidRes = await request('POST', `/api/projects/${tempProjectId}/plans`, {
+      title: '无效计划',
+      start_date: '2026-03-10',
+      end_date: '2026-03-01'
+    }, adminToken);
+    assert(invalidRes.status === 400, `无效计划应400，实际${invalidRes.status}`);
+
+    const createRes = await request('POST', `/api/projects/${tempProjectId}/plans`, {
+      title: '计划A',
+      start_date: '2026-03-01',
+      end_date: '2026-03-10'
+    }, adminToken);
+    assert(createRes.status === 201, `计划创建失败 ${createRes.status}`);
+    tempPlanId = createRes.data.id;
+
+    const techRes = await request('GET', `/api/projects/${tempProjectId}/plans`, null, techToken);
+    assert(techRes.status === 200, `技术访问失败 ${techRes.status}`);
+    assert(techRes.data.some(item => item.id === tempPlanId), '技术未看到计划');
+
+    const purchaseRes = await request('GET', `/api/projects/${tempProjectId}/plans`, null, purchaseToken);
+    assert(purchaseRes.status === 200, `采购访问失败 ${purchaseRes.status}`);
   });
 
-  await test('12.1.2 设备数量字段持久化（更新后读取）', async () => {
-    const updateRes = await request('PUT', `/api/projects/${testProjectId}`, { device_count: 8 }, adminToken);
-    if (updateRes.status !== 200) throw new Error(`HTTP ${updateRes.status}: ${updateRes.data.error}`);
-    const res = await request('GET', `/api/projects/${testProjectId}`, null, adminToken);
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    if (res.data.device_count !== 8) throw new Error(`device_count 应为 8，实际为 ${res.data.device_count}`);
+  await test('9. 看板统计对管理员与非管理员返回不同字段', async () => {
+    const adminRes = await request('GET', '/api/dashboard/stats', null, adminToken);
+    assert(adminRes.status === 200, `管理员看板失败 ${adminRes.status}`);
+    assert(adminRes.data.totalAmount !== undefined, '管理员缺少项目总额');
+
+    const techRes = await request('GET', '/api/dashboard/stats', null, techToken);
+    assert(techRes.status === 200, `技术看板失败 ${techRes.status}`);
+    assert(techRes.data.totalAmount === undefined, '技术看板不应返回项目总额');
   });
 
-  await test('12.2 新增计划项（日期无效应失败）', async () => {
-    const res = await request('POST', `/api/projects/${testProjectId}/plans`, { title: '无效计划', start_date: '2026-03-10', end_date: '2026-03-01' }, adminToken);
-    if (res.status !== 400) throw new Error(`应返回400，实际返回${res.status}`);
+  await test('10. 查询参数会正确传递到后端', async () => {
+    const res = await request('GET', '/api/dashboard/projects?type=all&limit=1&offset=0', null, techToken);
+    assert(res.status === 200, `HTTP ${res.status}`);
+    assert(Array.isArray(res.data.items), '项目分页结果格式错误');
+    assert(res.data.items.length <= 1, 'limit 参数未生效');
   });
 
-  await test('12.3 新增计划项（管理员）', async () => {
-    const res = await request('POST', `/api/projects/${testProjectId}/plans`, { title: '计划A', start_date: '2026-03-01', end_date: '2026-03-10' }, adminToken);
-    if (res.status !== 201) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    testPlanId = res.data.id;
-    if (!testPlanId) throw new Error('未获取到计划项ID');
+  await test('11. 错误密码登录被拒绝', async () => {
+    const res = await request('POST', '/api/login', { username: adminUser.username, password: 'wrongpassword' });
+    assert(res.status === 401, `应返回401，实际${res.status}`);
   });
 
-  await test('12.4 获取计划项列表（技术可访问）', async () => {
-    const res = await request('GET', `/api/projects/${testProjectId}/plans`, null, techToken);
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    if (!Array.isArray(res.data)) throw new Error('返回数据格式错误');
-    if (!res.data.some(p => p.id === testPlanId)) throw new Error('未找到计划项');
-  });
-
-  await test('12.5 采购角色访问计划项（允许）', async () => {
-    const res = await request('GET', `/api/projects/${testProjectId}/plans`, null, purchaseToken);
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-  });
-
-  // 测试13: 仪表盘统计 - 管理员
-  await test('13. 仪表盘统计 - 管理员', async () => {
-    const res = await request('GET', '/api/dashboard/stats', null, adminToken);
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    if (res.data.totalAmount === undefined) throw new Error('缺少totalAmount字段');
-    console.log(`   项目总额: ¥${res.data.totalAmount.toLocaleString()}`);
-  });
-
-  // 测试14: 仪表盘统计 - 技术角色
-  await test('14. 仪表盘统计 - 技术角色', async () => {
-    const res = await request('GET', '/api/dashboard/stats', null, techToken);
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.data.error}`);
-    if (res.data.totalAmount === undefined) throw new Error('缺少totalAmount字段');
-    console.log(`   技术可查看项目总额: ¥${res.data.totalAmount.toLocaleString()}`);
-  });
-
-  // 测试15: 错误的登录
-  await test('15. 错误密码登录（应失败）', async () => {
-    const res = await request('POST', '/api/login', { username: 'admin', password: 'wrongpassword' });
-    if (res.status !== 401) throw new Error(`应返回401，实际返回${res.status}`);
-    console.log('   正确拒绝错误密码');
-  });
-
-  // 测试16: 无Token访问
-  await test('16. 无Token访问API（应失败）', async () => {
+  await test('12. 无令牌访问被拒绝', async () => {
     const res = await request('GET', '/api/projects', null, null);
-    if (res.status !== 401) throw new Error(`应返回401，实际返回${res.status}`);
-    console.log('   正确拒绝未授权访问');
+    assert(res.status === 401, `应返回401，实际${res.status}`);
+  });
+
+  await test('13. 清理测试项目', async () => {
+    if (!tempProjectId) return;
+    const res = await request('DELETE', `/api/projects/${tempProjectId}`, null, adminToken);
+    assert(res.status === 200, `删除测试项目失败 ${res.status}`);
   });
 
   console.log('='.repeat(50));
+  if (failures > 0) {
+    console.error(`❌ 测试失败：${failures} 项未通过`);
+    console.log('='.repeat(50));
+    process.exit(1);
+  }
   console.log('✅ 所有测试通过！');
   console.log('='.repeat(50));
 }

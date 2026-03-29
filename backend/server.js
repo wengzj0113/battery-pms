@@ -10,7 +10,11 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
-const JWT_SECRET = 'battery-pms-secret-key-2026';
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV !== 'production' ? 'dev-battery-pms-secret' : '');
+if (!JWT_SECRET) {
+  console.error('JWT_SECRET is required in production');
+  process.exit(1);
+}
 const DATA_FILE = process.env.DATA_FILE || process.env.DATA_FILE_PATH || path.join(__dirname, 'data.json');
 const REQUIRE_DATA_FILE = process.env.REQUIRE_DATA_FILE === 'true';
 const SEED_DEFAULT_USERS = process.env.SEED_DEFAULT_USERS ? process.env.SEED_DEFAULT_USERS === 'true' : process.env.NODE_ENV !== 'production';
@@ -59,12 +63,17 @@ const saveData = () => {
   }
   const json = JSON.stringify(data, null, 2);
   const tmp = `${DATA_FILE}.tmp`;
-  if (fs.existsSync(DATA_FILE)) {
-    fs.copyFileSync(DATA_FILE, `${DATA_FILE}.bak`);
-  }
+  const bak = `${DATA_FILE}.bak`;
   fs.writeFileSync(tmp, json, 'utf-8');
-  fs.rmSync(DATA_FILE, { force: true });
-  fs.renameSync(tmp, DATA_FILE);
+  try {
+    if (fs.existsSync(bak)) fs.rmSync(bak, { force: true });
+    if (fs.existsSync(DATA_FILE)) fs.renameSync(DATA_FILE, bak);
+    fs.renameSync(tmp, DATA_FILE);
+  } catch (e) {
+    if (fs.existsSync(tmp)) fs.rmSync(tmp, { force: true });
+    if (!fs.existsSync(DATA_FILE) && fs.existsSync(bak)) fs.renameSync(bak, DATA_FILE);
+    throw e;
+  }
 };
 
 if (data.users.length === 0 && SEED_DEFAULT_USERS) {
@@ -152,6 +161,36 @@ const applyPlanOverdueStatus = (plan) => {
     return { ...plan, status: '已延期' };
   }
   return plan;
+};
+
+const financeFields = ['contract_amount', 'receivable_amount', 'received_amount'];
+const isAdminUser = (user) => user?.role === '管理员';
+
+const omitFields = (source, fields) => {
+  const next = { ...source };
+  fields.forEach(field => {
+    delete next[field];
+  });
+  return next;
+};
+
+const sanitizeProjectForResponse = (project, user) => {
+  const normalized = normalizeProjectForResponse(project);
+  if (isAdminUser(user)) return normalized;
+  return omitFields(normalized, financeFields);
+};
+
+const sanitizeProjectLogForResponse = (log, user) => {
+  if (isAdminUser(user)) return log;
+  if (log.action !== '更新项目') return log;
+  try {
+    const parsed = JSON.parse(String(log.details || '{}'));
+    const sanitized = omitFields(parsed, financeFields);
+    const details = Object.keys(sanitized).length === 0 ? '更新项目' : JSON.stringify(sanitized);
+    return { ...log, details };
+  } catch (e) {
+    return { ...log, details: '更新项目' };
+  }
 };
 
 const getRequestIp = (req) => {
@@ -374,7 +413,7 @@ app.get('/api/dashboard/stats', authMiddleware, (req, res) => {
     expiringProjects,
     newThisMonth,
     deliveredThisMonth,
-    totalAmount,
+    ...(isAdminUser(req.user) ? { totalAmount } : {}),
     stageDistribution
   });
 });
@@ -467,7 +506,7 @@ app.get('/api/projects', authMiddleware, (req, res) => {
   }
   
   projects.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  res.json(projects.map(normalizeProjectForResponse));
+  res.json(projects.map(project => sanitizeProjectForResponse(project, req.user)));
 });
 
 app.get('/api/projects/:id', authMiddleware, (req, res) => {
@@ -480,10 +519,10 @@ app.get('/api/projects/:id', authMiddleware, (req, res) => {
     .slice(0, 20)
     .map(l => {
       const user = data.users.find(u => u.id === l.user_id);
-      return { ...l, realname: user ? user.realname : '未知' };
+      return sanitizeProjectLogForResponse({ ...l, realname: user ? user.realname : '未知' }, req.user);
     });
   
-  res.json({ ...normalizeProjectForResponse(project), logs });
+  res.json({ ...sanitizeProjectForResponse(project, req.user), logs });
 });
 
 app.post('/api/projects', authMiddleware, (req, res) => {
@@ -492,12 +531,13 @@ app.post('/api/projects', authMiddleware, (req, res) => {
   const projectCode = `PRJ-${new Date().getFullYear()}-${String(count).padStart(3, '0')}`;
   const now = new Date().toISOString();
   
+  const isAdmin = req.user.role === '管理员';
   const project = {
     id,
     project_code: projectCode,
     project_name: req.body.project_name || '',
     customer_name: req.body.customer_name || '',
-    contract_amount: req.body.contract_amount || 0,
+    contract_amount: isAdmin ? (req.body.contract_amount || 0) : 0,
     signed_date: req.body.signed_date || '',
     planned_delivery_date: req.body.planned_delivery_date || '',
     actual_delivery_date: req.body.actual_delivery_date || '',
@@ -523,8 +563,8 @@ app.post('/api/projects', authMiddleware, (req, res) => {
     debug_status: req.body.debug_status || '待出发',
     acceptance_status: req.body.acceptance_status || '待验收',
     delivery_user_id: req.body.delivery_user_id || '',
-    receivable_amount: req.body.receivable_amount || 0,
-    received_amount: req.body.received_amount || 0,
+    receivable_amount: isAdmin ? (req.body.receivable_amount || 0) : 0,
+    received_amount: isAdmin ? (req.body.received_amount || 0) : 0,
     invoice_records: req.body.invoice_records || '[]',
     finance_user_id: req.body.finance_user_id || '',
     after_sale_status: req.body.after_sale_status || '正常',
@@ -565,6 +605,12 @@ app.put('/api/projects/:id', authMiddleware, (req, res) => {
   if (index === -1) return res.status(404).json({ error: '项目不存在' });
 
   if (!hasProjectAccess(req.user, req.params.id)) return res.status(403).json({ error: '无权限访问此项目' });
+  if (req.user.role !== '管理员') {
+    const touchingFinance = financeFields.some(f => req.body[f] !== undefined);
+    if (touchingFinance) {
+      return res.status(403).json({ error: '财务字段仅管理员可修改' });
+    }
+  }
   
   const allowedFields = [
     'project_name', 'customer_name', 'contract_amount', 'signed_date', 
