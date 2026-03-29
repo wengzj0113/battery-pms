@@ -1,11 +1,57 @@
 {
   "name": "battery-pms-root",
   "version": "1.0.0",
+  "main": "electron/main.js",
   "scripts": {
-    "postinstall": "cd backend && npm install",
-    "start": "cd backend && node server.js"
+    "postinstall": "npm.cmd --prefix backend install && npm.cmd --prefix frontend install",
+    "start": "npm.cmd --prefix backend run start",
+    "build:web": "npm.cmd --prefix frontend run build",
+    "desktop": "electron .",
+    "dist:win": "npm.cmd run build:web && electron-builder --win nsis"
   },
   "engines": {
     "node": "18.x"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.xuli.battery-pms",
+    "productName": "徐力电子项目管理系统",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "backend/**/*",
+      "frontend/dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "battery-pms-setup-${version}.exe"
+    }
   }
 }

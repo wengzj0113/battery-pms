@@ -16,6 +16,8 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 const DATA_FILE = process.env.DATA_FILE || process.env.DATA_FILE_PATH || path.join(__dirname, 'data.json');
+const FRONTEND_DIST = process.env.FRONTEND_DIST || path.join(__dirname, '..', 'frontend', 'dist');
+const HAS_FRONTEND_DIST = fs.existsSync(path.join(FRONTEND_DIST, 'index.html'));
 const REQUIRE_DATA_FILE = process.env.REQUIRE_DATA_FILE === 'true';
 const SEED_DEFAULT_USERS = process.env.SEED_DEFAULT_USERS ? process.env.SEED_DEFAULT_USERS === 'true' : process.env.NODE_ENV !== 'production';
 
@@ -231,6 +233,10 @@ app.post('/api/login', (req, res) => {
   saveData();
 
   res.json({ token, user: { id: user.id, username: user.username, realname: user.realname, role: user.role } });
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true });
 });
 
 app.post('/api/register', (req, res) => {
@@ -915,6 +921,17 @@ app.delete('/api/projects/:id', authMiddleware, adminMiddleware, (req, res) => {
   
   res.json({ success: true });
 });
+
+if (HAS_FRONTEND_DIST) {
+  app.use(express.static(FRONTEND_DIST));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      next();
+      return;
+    }
+    res.sendFile(path.join(FRONTEND_DIST, 'index.html'));
+  });
+}
 
 app.listen(PORT, HOST, () => {
   console.log(`服务器运行在 http://${HOST}:${PORT}`);
